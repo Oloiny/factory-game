@@ -330,28 +330,40 @@
             });
             
             // ========== 加载真实美术素材 ==========
-            // 地板 - 使用办公室地板素材 (ID 280)
-            this.load.image('floor', 'assets/sprites/microverse/Modern_Office_Singles_32x32_280.png');
-            
-            // 办公桌 (10 种)
+            // 办公桌 (ID 1-10: 横向单人桌)
             for (let i = 1; i <= 10; i++) {
                 this.load.image(`desk_${i}`, `assets/sprites/microverse/Modern_Office_Singles_32x32_${i}.png`);
             }
             
-            // 椅子 (10 种)
-            for (let i = 51; i <= 60; i++) {
+            // 椅子 (ID 61-70: 黑色办公椅)
+            for (let i = 61; i <= 70; i++) {
                 this.load.image(`chair_${i}`, `assets/sprites/microverse/Modern_Office_Singles_32x32_${i}.png`);
             }
             
-            // 植物 (2 种)
-            this.load.image('plant_1', 'assets/sprites/microverse/Modern_Office_Singles_32x32_201.png');
-            this.load.image('plant_2', 'assets/sprites/microverse/Modern_Office_Singles_32x32_202.png');
+            // 植物 (ID 96-100)
+            for (let i = 96; i <= 100; i++) {
+                this.load.image(`plant_${i}`, `assets/sprites/microverse/Modern_Office_Singles_32x32_${i}.png`);
+            }
             
-            // 文件柜
-            this.load.image('cabinet_1', 'assets/sprites/microverse/Modern_Office_Singles_32x32_101.png');
+            // 文件柜 (ID 101-106)
+            for (let i = 101; i <= 106; i++) {
+                this.load.image(`cabinet_${i}`, `assets/sprites/microverse/Modern_Office_Singles_32x32_${i}.png`);
+            }
             
-            // 电脑
-            this.load.image('computer_1', 'assets/sprites/microverse/Modern_Office_Singles_32x32_151.png');
+            // 显示器/电脑 (ID 151-156)
+            for (let i = 151; i <= 156; i++) {
+                this.load.image(`computer_${i}`, `assets/sprites/microverse/Modern_Office_Singles_32x32_${i}.png`);
+            }
+            
+            // 沙发/休闲家具 (ID 201-210)
+            for (let i = 201; i <= 210; i++) {
+                this.load.image(`sofa_${i}`, `assets/sprites/microverse/Modern_Office_Singles_32x32_${i}.png`);
+            }
+            
+            // 大型家具/隔断 (ID 241-260)
+            for (let i = 241; i <= 260; i++) {
+                this.load.image(`furniture_${i}`, `assets/sprites/microverse/Modern_Office_Singles_32x32_${i}.png`);
+            }
             
             // 角色 (Pixel Agents 精灵表，112x96，7列x4行，每帧 16x24)
             for (let i = 0; i <= 5; i++) {
@@ -537,72 +549,148 @@
             }
         }
         
-        // ========== 场景创建（真实地板贴图版）==========
+        // ========== 场景创建（真实美术素材装修版）==========
         function createScene(scene) {
-            // 1. 背景
-            scene.cameras.main.setBackgroundColor('#e8e8e8');
-            
-            // 2. 地板 - 使用真实美术素材平铺
-            const floorTileSize = 32;
-            for (let x = 0; x < 800; x += floorTileSize) {
-                for (let y = 0; y < 600; y += floorTileSize) {
-                    const floor = scene.add.image(x + floorTileSize/2, y + floorTileSize/2, 'floor');
-                    floor.setDisplaySize(floorTileSize, floorTileSize);
-                    floor.setDepth(0);
+            // ── 1. 地板（用 Graphics 绘制木地板纹理，无需贴图）──
+            const floorGfx = scene.add.graphics().setDepth(0);
+            // 底色：米色木地板
+            floorGfx.fillStyle(0xd4b896);
+            floorGfx.fillRect(0, 0, 800, 600);
+            // 木板条纹（横向）
+            floorGfx.lineStyle(1, 0xc4a882, 0.5);
+            for (let y = 0; y < 600; y += 32) {
+                floorGfx.lineBetween(0, y, 800, y);
+            }
+            // 木板竖向接缝（错位）
+            floorGfx.lineStyle(1, 0xc4a882, 0.35);
+            for (let row = 0; row < 20; row++) {
+                const offset = (row % 2 === 0) ? 0 : 64;
+                for (let x = offset; x < 800; x += 128) {
+                    floorGfx.lineBetween(x, row * 32, x, (row + 1) * 32);
                 }
             }
             
-            // 3. 办公区域 - 2x2 布局
-            // [0][1]
-            // [2][3]
+            // ── 2. 墙壁（上方 + 左右）──
+            const wallGfx = scene.add.graphics().setDepth(0);
+            // 上方墙壁（浅灰蓝色）
+            wallGfx.fillStyle(0xb8c4d0);
+            wallGfx.fillRect(0, 0, 800, 40);
+            // 踢脚线
+            wallGfx.fillStyle(0x8fa0b0);
+            wallGfx.fillRect(0, 36, 800, 4);
+            // 左右侧墙
+            wallGfx.fillStyle(0xb8c4d0);
+            wallGfx.fillRect(0, 0, 12, 600);
+            wallGfx.fillRect(788, 0, 12, 600);
+            // 底部踢脚线
+            wallGfx.fillStyle(0x8fa0b0);
+            wallGfx.fillRect(0, 596, 800, 4);
+            
+            // ── 3. 会议室区域（左上角）──
+            const meetingBg = scene.add.graphics().setDepth(1);
+            meetingBg.fillStyle(0xc8d8e8, 0.4);
+            meetingBg.fillRect(20, 50, 220, 160);
+            meetingBg.lineStyle(2, 0x7a9ab8, 0.8);
+            meetingBg.strokeRect(20, 50, 220, 160);
+            
+            // 会议桌（用 ID 21 大型桌）
+            scene.add.image(130, 130, 'desk_5').setDisplaySize(120, 60).setDepth(2);
+            // 会议室椅子（围绕桌子）
+            scene.add.image(80,  105, 'chair_61').setDisplaySize(32, 36).setDepth(2);
+            scene.add.image(130, 105, 'chair_61').setDisplaySize(32, 36).setDepth(2);
+            scene.add.image(180, 105, 'chair_61').setDisplaySize(32, 36).setDepth(2);
+            scene.add.image(80,  160, 'chair_62').setDisplaySize(32, 36).setDepth(3);
+            scene.add.image(130, 160, 'chair_62').setDisplaySize(32, 36).setDepth(3);
+            scene.add.image(180, 160, 'chair_62').setDisplaySize(32, 36).setDepth(3);
+            // 会议室植物
+            scene.add.image(30, 60, 'plant_96').setDisplaySize(36, 42).setDepth(2);
+            scene.add.image(225, 60, 'plant_97').setDisplaySize(36, 42).setDepth(2);
+            // 会议室标牌
+            scene.add.text(130, 58, '📢 会议室', {
+                font: 'bold 13px Arial', fill: '#2d4a6a',
+                stroke: '#c8d8e8', strokeThickness: 2
+            }).setOrigin(0.5).setDepth(3);
+            
+            // ── 4. 咖啡休闲角（右上角）──
+            const cafeBg = scene.add.graphics().setDepth(1);
+            cafeBg.fillStyle(0xf0e0c8, 0.4);
+            cafeBg.fillRect(560, 50, 220, 160);
+            cafeBg.lineStyle(2, 0xc8a070, 0.8);
+            cafeBg.strokeRect(560, 50, 220, 160);
+            
+            // 沙发（ID 201-203）
+            scene.add.image(600, 150, 'sofa_201').setDisplaySize(70, 55).setDepth(2);
+            scene.add.image(680, 150, 'sofa_202').setDisplaySize(70, 55).setDepth(2);
+            // 茶几（用小桌子）
+            scene.add.image(640, 110, 'desk_3').setDisplaySize(55, 35).setDepth(2);
+            // 植物装饰
+            scene.add.image(570, 60, 'plant_98').setDisplaySize(36, 42).setDepth(2);
+            scene.add.image(765, 60, 'plant_99').setDisplaySize(36, 42).setDepth(2);
+            // 咖啡角标牌
+            scene.add.text(670, 58, '☕ 休闲区', {
+                font: 'bold 13px Arial', fill: '#7a3a10',
+                stroke: '#f0e0c8', strokeThickness: 2
+            }).setOrigin(0.5).setDepth(3);
+            
+            // ── 5. 文件柜墙（左侧）──
+            for (let i = 0; i < 4; i++) {
+                const cabId = 101 + (i % 3);
+                scene.add.image(30, 280 + i * 70, `cabinet_${cabId}`).setDisplaySize(44, 64).setDepth(2);
+            }
+            
+            // ── 6. 文件柜墙（右侧）──
+            for (let i = 0; i < 3; i++) {
+                const cabId = 104 + (i % 3);
+                scene.add.image(770, 300 + i * 70, `cabinet_${cabId}`).setDisplaySize(44, 64).setDepth(2);
+            }
+            
+            // ── 7. 底部植物装饰 ──
+            scene.add.image(30, 570, 'plant_100').setDisplaySize(38, 44).setDepth(2);
+            scene.add.image(770, 570, 'plant_96').setDisplaySize(38, 44).setDepth(2);
+            scene.add.image(400, 575, 'plant_97').setDisplaySize(38, 44).setDepth(2);
+            
+            // ── 8. 办公区（2×2 工位）──
             const positions = [
-                { x: 280, y: 220 }, // 左上 - 小明
-                { x: 520, y: 220 }, // 右上 - 小红
-                { x: 280, y: 400 }, // 左下 - 小刚
-                { x: 520, y: 400 }  // 右下 - 小丽
+                { x: 250, y: 320 }, // 左上工位
+                { x: 420, y: 320 }, // 右上工位
+                { x: 250, y: 480 }, // 左下工位
+                { x: 420, y: 480 }  // 右下工位
             ];
             
             mainGame.employees.forEach((emp, index) => {
-                const pos = positions[index] || positions[0];
+                const pos = positions[index] || { x: 340, y: 400 };
                 const x = pos.x;
                 const y = pos.y;
                 
-                // 桌子（最后面）
-                const deskKey = `desk_${(index % 10) + 1}`;
-                const desk = scene.add.image(x, y - 15, deskKey);
-                desk.setDisplaySize(70, 50);
-                desk.setDepth(1);
+                // 桌子
+                const deskKey = `desk_${(index % 5) + 1}`;
+                scene.add.image(x, y - 20, deskKey).setDisplaySize(80, 55).setDepth(2);
                 
-                // 电脑（在桌子上）
-                const computer = scene.add.image(x - 18, y - 20, 'computer_1');
-                computer.setDisplaySize(25, 20);
-                computer.setDepth(2);
+                // 电脑显示器（放桌上）
+                const compId = 151 + (index % 4);
+                scene.add.image(x - 15, y - 28, `computer_${compId}`).setDisplaySize(28, 22).setDepth(3);
                 
-                // 员工角色（可拖拽）
+                // 员工角色
                 const charKey = `char_${index % 6}`;
-                // Pixel Agents 精灵表每帧 16x24，放大 3 倍显示为 48x72
                 const playerSprite = scene.add.sprite(x, y + 32, charKey, 0);
                 playerSprite.setDisplaySize(48, 72);
                 playerSprite.play(`char_${index % 6}_walk_down`);
-                playerSprite.setDepth(3);
+                playerSprite.setDepth(4);
                 playerSprite.setInteractive({ cursor: 'grab' });
                 
-                // 拖拽事件
                 playerSprite.on('pointerdown', (pointer) => {
                     dragTarget = emp;
                     dragOffset.x = pointer.x - playerSprite.x;
                     dragOffset.y = pointer.y - playerSprite.y;
                     playerSprite.setDepth(10);
                 });
-                
                 playerSprite.on('pointerup', () => {
                     if (dragTarget === emp) {
                         dragTarget = null;
-                        playerSprite.setDepth(3);
+                        playerSprite.setDepth(4);
                         emp.deskPosition = { x: playerSprite.x, y: playerSprite.y };
                     }
                 });
-                
                 playerSprite.on('pointermove', (pointer) => {
                     if (dragTarget === emp) {
                         playerSprite.x = pointer.x - dragOffset.x;
@@ -610,83 +698,45 @@
                     }
                 });
                 
-                // 状态图标
                 emp.stateIcon = null;
                 updateEmployeeStateIcon(scene, emp);
                 
-                // 椅子（角色前面，更明显）- 素材是 64x96，不需要放大太多
-                const chairKey = `chair_${51 + (index % 10)}`;
-                const chair = scene.add.image(x, y + 55, chairKey);
-                chair.setDisplaySize(48, 70);
-                chair.setDepth(5);
+                // 椅子（角色前面）
+                const chairKey = `chair_${61 + (index % 5)}`;
+                scene.add.image(x, y + 55, chairKey).setDisplaySize(44, 52).setDepth(5);
                 
                 emp.sprite = playerSprite;
                 emp.deskPosition = { x, y };
                 
                 // 名牌
-                scene.add.text(x, y + 55, emp.name, {
-                    font: 'bold 11px Arial',
-                    fill: '#2d3748',
-                    stroke: '#ffffff',
-                    strokeThickness: 2
-                }).setOrigin(0.5).setDepth(5);
-                
-                scene.add.text(x, y + 68, emp.role, {
-                    font: '9px Arial',
-                    fill: '#718096'
-                }).setOrigin(0.5).setDepth(5);
+                scene.add.text(x, y + 62, emp.name, {
+                    font: 'bold 11px Arial', fill: '#2d3748',
+                    stroke: '#ffffff', strokeThickness: 2
+                }).setOrigin(0.5).setDepth(6);
+                scene.add.text(x, y + 75, emp.role, {
+                    font: '9px Arial', fill: '#718096'
+                }).setOrigin(0.5).setDepth(6);
             });
             
-            // 4. 区域标记（会议室/咖啡厅）
-            // 会议室 - 上方中央
-            const meetingZone = scene.add.graphics();
-            meetingZone.fillStyle(0x4a5568, 0.25);
-            meetingZone.fillRoundedRect(300, 50, 200, 100, 10);
-            meetingZone.lineStyle(3, 0x2d3748);
-            meetingZone.strokeRoundedRect(300, 50, 200, 100, 10);
-            meetingZone.setDepth(0);
+            // ── 9. 工位区域背景框 ──
+            const workAreaGfx = scene.add.graphics().setDepth(1);
+            workAreaGfx.fillStyle(0xe8f0e8, 0.3);
+            workAreaGfx.fillRect(160, 270, 340, 280);
+            workAreaGfx.lineStyle(1, 0x88a888, 0.5);
+            workAreaGfx.strokeRect(160, 270, 340, 280);
+            scene.add.text(340, 278, '💼 工作区', {
+                font: '11px Arial', fill: '#4a6a4a', stroke: '#e8f0e8', strokeThickness: 2
+            }).setOrigin(0.5).setDepth(2);
             
-            scene.add.text(400, 90, '📢 会议室', {
-                font: 'bold 16px Arial',
-                fill: '#2d3748',
-                stroke: '#ffffff',
-                strokeThickness: 2
-            }).setOrigin(0.5).setDepth(1);
-            
-            // 咖啡厅 - 右侧中央
-            const cafeZone = scene.add.graphics();
-            cafeZone.fillStyle(0xc05621, 0.25);
-            cafeZone.fillRoundedRect(650, 250, 130, 100, 10);
-            cafeZone.lineStyle(3, 0x9c4221);
-            cafeZone.strokeRoundedRect(650, 250, 130, 100, 10);
-            cafeZone.setDepth(0);
-            
-            scene.add.text(715, 290, '☕ 咖啡厅', {
-                font: 'bold 14px Arial',
-                fill: '#9c4221',
-                stroke: '#ffffff',
-                strokeThickness: 2
-            }).setOrigin(0.5).setDepth(1);
-            
-            // 5. 装饰物
-            scene.add.image(50, 50, 'plant_1').setDisplaySize(45, 45).setDepth(1);
-            scene.add.image(750, 50, 'plant_2').setDisplaySize(45, 45).setDepth(1);
-            scene.add.image(50, 550, 'plant_2').setDisplaySize(45, 45).setDepth(1);
-            scene.add.image(750, 550, 'plant_1').setDisplaySize(45, 45).setDepth(1);
-            
-            scene.add.image(40, 300, 'cabinet_1').setDisplaySize(55, 70).setDepth(1);
-            scene.add.image(760, 300, 'cabinet_1').setDisplaySize(55, 70).setDepth(1);
-            
-            // 6. 墙边界
-            const wallGfx = scene.add.graphics();
-            wallGfx.lineStyle(3, 0x4a5568);
-            wallGfx.strokeRect(0, 0, 800, 600);
-            wallGfx.setDepth(100);
+            // ── 10. 外框（窗口边界）──
+            const borderGfx = scene.add.graphics().setDepth(100);
+            borderGfx.lineStyle(3, 0x4a5568, 1);
+            borderGfx.strokeRect(0, 0, 800, 600);
             
             // 保存区域引用
             gameScene.zones = {
-                meeting: { x: 300, y: 50, width: 200, height: 100, name: '会议室' },
-                cafe: { x: 650, y: 250, width: 130, height: 100, name: '咖啡厅' }
+                meeting: { x: 20, y: 50, width: 220, height: 160, name: '会议室' },
+                cafe: { x: 560, y: 50, width: 220, height: 160, name: '休闲区' }
             };
         }
         
