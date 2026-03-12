@@ -452,6 +452,105 @@
             box-shadow: 0 6px 0 #b8860b;
         }
         #restart-btn:active { transform: translateY(2px); box-shadow: none; }
+
+        /* ===== 八卦热榜 ===== */
+        #gossip-feed {
+            position: absolute;
+            right: 8px;
+            top: 44px;
+            width: 160px;
+            background: rgba(10, 14, 26, 0.88);
+            border: 1px solid #2a3550;
+            border-radius: 4px;
+            padding: 6px;
+            font-family: 'Press Start 2P', monospace;
+            z-index: 50;
+            max-height: 200px;
+            overflow: hidden;
+        }
+        #gossip-feed-title {
+            font-size: 6px;
+            color: #f59e0b;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #2a3550;
+            padding-bottom: 4px;
+        }
+        #gossip-feed-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .gossip-item {
+            font-size: 5px;
+            color: #cbd5e1;
+            line-height: 1.6;
+            border-left: 2px solid #f59e0b;
+            padding-left: 4px;
+            animation: fadeInDown 0.4s ease;
+        }
+        .gossip-item .gossip-heat {
+            color: #f87171;
+            font-size: 5px;
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== 关系图谱弹窗 ===== */
+        #relation-modal {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        #relation-modal.active { display: flex; }
+        #relation-modal-inner {
+            background: #0d1117;
+            border: 2px solid #3b4f7a;
+            border-radius: 6px;
+            padding: 14px;
+            width: 560px;
+        }
+        #relation-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            color: #e2e8f0;
+            margin-bottom: 10px;
+        }
+        #relation-close-btn {
+            background: none;
+            border: 1px solid #4a5568;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        #relation-close-btn:hover { background: #1e2a3a; color: #e2e8f0; }
+        #relation-canvas {
+            display: block;
+            background: #0a0e1a;
+            border: 1px solid #1e2a3a;
+            border-radius: 4px;
+        }
+        #relation-legend {
+            display: flex;
+            gap: 14px;
+            margin-top: 8px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 5px;
+            color: #94a3b8;
+        }
+        .legend-item { display: flex; align-items: center; gap: 4px; }
+        .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
     </style>
 </head>
 <body>
@@ -500,6 +599,14 @@
                     </div>
                 </div>
 
+                <!-- 关系图谱按钮 -->
+                <div class="hud-block" style="border-right:none; cursor:pointer;" id="relation-btn" title="查看员工关系图谱">
+                    <div style="text-align:center;">
+                        <div class="stat-label">关系</div>
+                        <div class="stat-value" style="font-size:14px;">🕸️</div>
+                    </div>
+                </div>
+
             </div>
 
             <!-- 员工状态面板 -->
@@ -507,6 +614,28 @@
             
             <!-- 技能栏 -->
             <div id="skill-bar"></div>
+
+            <!-- 八卦热榜（右侧常驻） -->
+            <div id="gossip-feed">
+                <div id="gossip-feed-title">📡 公司动态</div>
+                <div id="gossip-feed-list"></div>
+            </div>
+        </div>
+
+        <!-- 关系图谱弹窗 -->
+        <div id="relation-modal">
+            <div id="relation-modal-inner">
+                <div id="relation-modal-header">
+                    <span>🕸️ 员工关系图谱</span>
+                    <button id="relation-close-btn">✕</button>
+                </div>
+                <canvas id="relation-canvas" width="520" height="380"></canvas>
+                <div id="relation-legend">
+                    <span class="legend-item"><span class="legend-dot" style="background:#4ade80"></span>好友(≥30)</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#94a3b8"></span>普通</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#f87171"></span>死敌(≤-30)</span>
+                </div>
+            </div>
         </div>
         
         <!-- 事件弹窗 -->
@@ -1264,7 +1393,160 @@
             
             updateEmployeePanel();
             updateSkillButtons();
+            updateGossipFeed();
         }
+
+        // ===== 八卦热榜 =====
+        function updateGossipFeed() {
+            if (!mainGame || !mainGame.gossipSystem) return;
+            const hot = mainGame.gossipSystem.getHotGossip(4);
+            const list = document.getElementById('gossip-feed-list');
+            if (!list) return;
+
+            // 只在内容变化时刷新（避免闪烁）
+            const newHtml = hot.map(g => `
+                <div class="gossip-item">
+                    <span class="gossip-heat">🔥${g.importance}</span> ${g.content}
+                </div>
+            `).join('');
+
+            if (list.innerHTML !== newHtml) {
+                list.innerHTML = newHtml || '<div class="gossip-item" style="color:#4a5568">暂无动态...</div>';
+            }
+        }
+
+        // ===== 关系图谱 =====
+        function drawRelationGraph() {
+            if (!mainGame || !mainGame.gossipSystem) return;
+            const { nodes, edges } = mainGame.gossipSystem.getRelationshipGraph();
+            const canvas = document.getElementById('relation-canvas');
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width, H = canvas.height;
+
+            ctx.clearRect(0, 0, W, H);
+
+            // 背景
+            ctx.fillStyle = '#0a0e1a';
+            ctx.fillRect(0, 0, W, H);
+
+            if (nodes.length === 0) {
+                ctx.fillStyle = '#4a5568';
+                ctx.font = '10px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('暂无员工数据', W / 2, H / 2);
+                return;
+            }
+
+            // 计算节点位置（圆形布局）
+            const cx = W / 2, cy = H / 2;
+            const radius = Math.min(W, H) * 0.35;
+            const positions = {};
+            nodes.forEach((node, i) => {
+                const angle = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
+                positions[node.id] = {
+                    x: cx + Math.cos(angle) * radius,
+                    y: cy + Math.sin(angle) * radius,
+                };
+            });
+
+            // 绘制边（关系连线）
+            edges.forEach(edge => {
+                const from = positions[edge.source];
+                const to = positions[edge.target];
+                if (!from || !to) return;
+
+                const val = edge.value;
+                let color, lineWidth;
+                if (val >= 30) {
+                    color = '#4ade80'; lineWidth = 2;
+                } else if (val <= -30) {
+                    color = '#f87171'; lineWidth = 2;
+                } else if (Math.abs(val) >= 10) {
+                    color = val > 0 ? '#86efac' : '#fca5a5'; lineWidth = 1;
+                } else {
+                    color = '#2a3550'; lineWidth = 1;
+                }
+
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = lineWidth;
+                ctx.globalAlpha = 0.7;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+
+                // 在连线中点显示关系值
+                if (Math.abs(val) >= 10) {
+                    const mx = (from.x + to.x) / 2;
+                    const my = (from.y + to.y) / 2;
+                    ctx.fillStyle = color;
+                    ctx.font = 'bold 9px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText((val > 0 ? '+' : '') + Math.round(val), mx, my);
+                }
+            });
+
+            // 绘制节点
+            nodes.forEach(node => {
+                const pos = positions[node.id];
+                const nodeRadius = 18;
+
+                // 节点圆
+                const stateColor = {
+                    normal: '#1e3a5f',
+                    stocking: '#3d2a00',
+                    angry: '#3d0000',
+                    resigning: '#2d1a4a',
+                }[node.state] || '#1e3a5f';
+
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, nodeRadius, 0, Math.PI * 2);
+                ctx.fillStyle = stateColor;
+                ctx.fill();
+                ctx.strokeStyle = node.state === 'normal' ? '#3b82f6' : '#f59e0b';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 角色 emoji
+                const roleEmoji = {
+                    programmer: '💻', pm: '📋', designer: '🎨',
+                    tester: '🔍', manager: '👔',
+                }[node.role] || '👤';
+                ctx.font = '14px serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(roleEmoji, pos.x, pos.y + 5);
+
+                // 名字
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = '6px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(node.name, pos.x, pos.y + nodeRadius + 10);
+
+                // 状态标记
+                if (node.state !== 'normal') {
+                    const stateEmoji = { stocking: '😤', angry: '😡', resigning: '🚪' }[node.state] || '';
+                    ctx.font = '10px serif';
+                    ctx.fillText(stateEmoji, pos.x + nodeRadius - 4, pos.y - nodeRadius + 4);
+                }
+            });
+        }
+
+        // ===== 关系图谱按钮事件 =====
+        document.getElementById('relation-btn').addEventListener('click', () => {
+            const modal = document.getElementById('relation-modal');
+            modal.classList.add('active');
+            drawRelationGraph();
+        });
+        document.getElementById('relation-close-btn').addEventListener('click', () => {
+            document.getElementById('relation-modal').classList.remove('active');
+        });
+        // 点击遮罩关闭
+        document.getElementById('relation-modal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('relation-modal')) {
+                document.getElementById('relation-modal').classList.remove('active');
+            }
+        });
         
         // 状态 → 像素图标映射
         const STATE_ICON_MAP = {

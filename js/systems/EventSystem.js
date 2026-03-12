@@ -335,12 +335,74 @@ class EventSystem {
     const result = option.effect(event.target);
     
     console.log(`✨ 结果：${result.message}`);
+
+    // 自动向八卦系统发布事件（让员工感知并传播）
+    this._publishToGossip(event, option, result);
     
     return {
       event: event,
       option: option,
       result: result
     };
+  }
+
+  /**
+   * 将游戏事件转化为八卦，注入 GossipSystem
+   */
+  _publishToGossip(event, option, result) {
+    if (!this.game.gossipSystem) return;
+
+    const gs = this.game.gossipSystem;
+    const emp = event.target;
+    const empName = emp ? emp.name : '某员工';
+
+    // 根据事件类别生成对应的八卦
+    const gossipMap = {
+      breakdown: {
+        type: 'boss_rage',
+        content: `${empName}在工位崩溃了！`,
+        location: emp ? emp.zone : 'desk',
+        importance: 7,
+        affectedRelation: emp ? { a: emp.id, b: null, delta: -5 } : null,
+      },
+      poach: {
+        type: 'colleague_fired',
+        content: `听说${empName}被竞品高薪挖角！`,
+        location: 'smoking_area',
+        importance: 8,
+        affectedRelation: emp ? { a: emp.id, b: null, delta: -10 } : null,
+      },
+      argument: {
+        type: 'colleague_conflict',
+        content: `${empName}和同事在会议室大吵了一架！`,
+        location: 'meeting_room',
+        importance: 6,
+      },
+      gossip: {
+        type: event.id === 'gossip_layoff' ? 'colleague_fired' : 'colleague_promoted',
+        content: event.id === 'gossip_layoff'
+          ? '吸烟区传出裁员谣言，人心惶惶...'
+          : '听说某个部门奖金翻倍了！',
+        location: 'smoking_area',
+        importance: event.id === 'gossip_layoff' ? 9 : 5,
+      },
+      breakthrough: {
+        type: 'team_celebration',
+        content: `${empName}修复了大 Bug，老板当众表扬！`,
+        location: emp ? emp.zone : 'desk',
+        importance: 4,
+        affectedRelation: emp ? { a: emp.id, b: null, delta: 5 } : null,
+      },
+    };
+
+    const gossipData = gossipMap[event.category];
+    if (gossipData) {
+      gs.publishEvent({
+        ...gossipData,
+        subject: emp || { id: 'unknown' },
+        day: this.day,
+      });
+    }
   }
   
   // ========== 进度 ==========
