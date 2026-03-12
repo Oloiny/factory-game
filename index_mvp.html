@@ -353,10 +353,12 @@
             // 电脑
             this.load.image('computer_1', 'assets/sprites/microverse/Modern_Office_Singles_32x32_151.png');
             
-            // 角色 (Pixel Agents 精灵表，112x96)
-            // 使用完整角色图像（非 spritesheet），直接加载为单个图像
+            // 角色 (Pixel Agents 精灵表，112x96，7列x4行，每帧 16x24)
             for (let i = 0; i <= 5; i++) {
-                this.load.image(`char_${i}`, `assets/sprites/pixel-agents/char_${i}.png`);
+                this.load.spritesheet(`char_${i}`, `assets/sprites/pixel-agents/char_${i}.png`, {
+                    frameWidth: 16,
+                    frameHeight: 24
+                });
             }
             
             // 状态图标（用代码生成）
@@ -578,9 +580,10 @@
                 
                 // 员工角色（可拖拽）
                 const charKey = `char_${index % 6}`;
-                // 使用 Pixel Agents 完整角色图像（112x96），等比缩放到合适大小
-                const playerSprite = scene.add.sprite(x, y + 32, charKey);
-                playerSprite.setDisplaySize(96, 80);
+                // Pixel Agents 精灵表每帧 16x24，放大 3 倍显示为 48x72
+                const playerSprite = scene.add.sprite(x, y + 32, charKey, 0);
+                playerSprite.setDisplaySize(48, 72);
+                playerSprite.play(`char_${index % 6}_walk_down`);
                 playerSprite.setDepth(3);
                 playerSprite.setInteractive({ cursor: 'grab' });
                 
