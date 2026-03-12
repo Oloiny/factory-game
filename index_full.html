@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>长安文豪会 - 完整版</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #1a1a2e; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh;
+            font-family: 'STKaiti', 'KaiTi', Arial, sans-serif;
+        }
+        #game-container { 
+            border: 4px solid #8b4513; 
+            border-radius: 8px; 
+            box-shadow: 0 0 30px rgba(139, 69, 19, 0.7);
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffd700;
+            font-size: 24px;
+            text-align: center;
+        }
+        .progress-bar {
+            width: 300px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #ffed4e);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="loading">
+            <div>🏮 加载长安文豪会 🏮</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress"></div>
+            </div>
+            <div id="loading-text">0%</div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script>
+        // 游戏配置
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container',
+            pixelArt: true,
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    debug: false
+                }
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
+
+        const game = new Phaser.Game(config);
+        let player;
+        let cursors;
+        let agents = [];
+        let loadingText;
+        let progressBar;
+
+        function preload() {
+            // 加载进度
+            loadingText = document.getElementById('loading-text');
+            progressBar = document.getElementById('progress');
+            
+            this.load.on('progress', (value) => {
+                const percent = Math.round(value * 100);
+                progressBar.style.width = percent + '%';
+                loadingText.textContent = percent + '%';
+            });
+            
+            this.load.on('complete', () => {
+                document.getElementById('loading').style.display = 'none';
+            });
+            
+            // 加载地图
+            this.load.image('map', 'assets/maps/the_ville2.png');
+            
+            // 加载角色动画
+            this.load.atlas('characters', 
+                'assets/characters/atlas.png',
+                'assets/characters/atlas.json'
+            );
+            
+            // 加载头像
+            this.load.image('libai_face', 'assets/characters/Klaus_Mueller.png');
+            this.load.image('dufu_face', 'assets/characters/Maria_Lopez.png');
+            this.load.image('sushi_face', 'assets/characters/Isabella_Rodriguez.png');
+        }
+
+        function create() {
+            // 添加地图背景
+            this.add.image(400, 300, 'map');
+            
+            // 创建动画
+            this.anims.create({
+                key: 'walk-down',
+                frames: this.anims.generateFrameNames('characters', {
+                    prefix: 'down-walk.',
+                    start: 0,
+                    end: 3,
+                    zeroPad: 3
+                }),
+                frameRate: 10,
+                repeat: -1
+            });
+            
+            this.anims.create({
+                key: 'walk-up',
+                frames: this.anims.generateFrameNames('characters', {
+                    prefix: 'up-walk.',
+                    start: 0,
+                    end: 3,
+                    zeroPad: 3
+                }),
+                frameRate: 10,
+                repeat: -1
+            });
+            
+            this.anims.create({
+                key: 'walk-left',
+                frames: this.anims.generateFrameNames('characters', {
+                    prefix: 'left-walk.',
+                    start: 0,
+                    end: 3,
+                    zeroPad: 3
+                }),
+                frameRate: 10,
+                repeat: -1
+            });
+            
+            this.anims.create({
+                key: 'walk-right',
+                frames: this.anims.generateFrameNames('characters', {
+                    prefix: 'right-walk.',
+                    start: 0,
+                    end: 3,
+                    zeroPad: 3
+                }),
+                frameRate: 10,
+                repeat: -1
+            });
+            
+            // 创建玩家（李白）
+            player = this.physics.add.sprite(400, 300, 'characters', 'down-walk.000');
+            player.setDepth(1);
+            
+            // 创建其他 Agent
+            const dufu = this.physics.add.sprite(350, 350, 'characters', 'down-walk.000');
+            const sushi = this.physics.add.sprite(450, 350, 'characters', 'down-walk.000');
+            
+            agents = [dufu, sushi];
+            
+            // 相机
+            this.cameras.main.startFollow(player, true, 0.05, 0.05);
+            this.cameras.main.setBounds(0, 0, 2048, 1536);
+            this.physics.world.setBounds(0, 0, 2048, 1536);
+            
+            // 键盘
+            cursors = this.input.keyboard.createCursorKeys();
+            
+            // 创建 UI
+            createUI(this);
+        }
+
+        function createUI(scene) {
+            // 顶部标题
+            scene.add.text(20, 20, '长安文豪会', {
+                font: 'bold 24px STKaiti, KaiTi, Arial',
+                fill: '#ffd700',
+                stroke: '#000000',
+                strokeThickness: 4
+            }).setScrollFactor(0).setDepth(100);
+            
+            // 底部状态栏
+            const statusBarY = 520;
+            const bg = scene.add.graphics();
+            bg.fillStyle(0x000000, 0.8);
+            bg.fillRect(0, statusBarY, 800, 80);
+            bg.setScrollFactor(0).setDepth(99);
+            
+            // 角色头像
+            const libai = scene.add.image(50, statusBarY + 40, 'libai_face');
+            libai.setDisplaySize(50, 50);
+            libai.setScrollFactor(0).setDepth(100);
+            
+            const dufu = scene.add.image(200, statusBarY + 40, 'dufu_face');
+            dufu.setDisplaySize(50, 50);
+            dufu.setScrollFactor(0).setDepth(100);
+            
+            const sushi = scene.add.image(350, statusBarY + 40, 'sushi_face');
+            sushi.setDisplaySize(50, 50);
+            sushi.setScrollFactor(0).setDepth(100);
+            
+            // 名字
+            scene.add.text(110, statusBarY + 25, '李白', {
+                font: 'bold 16px STKaiti, KaiTi, Arial',
+                fill: '#ffffff'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(260, statusBarY + 25, '杜甫', {
+                font: 'bold 16px STKaiti, KaiTi, Arial',
+                fill: '#ffffff'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(410, statusBarY + 25, '苏轼', {
+                font: 'bold 16px STKaiti, KaiTi, Arial',
+                fill: '#ffffff'
+            }).setScrollFactor(0).setDepth(100);
+            
+            // 状态
+            scene.add.text(110, statusBarY + 50, '空闲中', {
+                font: '14px STKaiti, KaiTi, Arial',
+                fill: '#aaaaaa'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(260, statusBarY + 50, '空闲中', {
+                font: '14px STKaiti, KaiTi, Arial',
+                fill: '#aaaaaa'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(410, statusBarY + 50, '空闲中', {
+                font: '14px STKaiti, KaiTi, Arial',
+                fill: '#aaaaaa'
+            }).setScrollFactor(0).setDepth(100);
+            
+            // 右侧工具面板
+            const panelX = 650;
+            const panelY = 20;
+            const panelBg = scene.add.graphics();
+            panelBg.fillStyle(0x8B4513, 0.9);
+            panelBg.fillRoundedRect(panelX, panelY, 130, 180, 10);
+            panelBg.lineStyle(2, 0xDAA520);
+            panelBg.strokeRoundedRect(panelX, panelY, 130, 180, 10);
+            panelBg.setScrollFactor(0).setDepth(99);
+            
+            scene.add.text(panelX + 65, panelY + 20, '干预工具', {
+                font: 'bold 16px STKaiti, KaiTi, Arial',
+                fill: '#ffd700'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(panelX + 65, panelY + 55, '🍶 送酒', {
+                font: '14px STKaiti, KaiTi, Arial',
+                fill: '#ffffff'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(panelX + 65, panelY + 85, '📖 赠书', {
+                font: '14px STKaiti, KaiTi, Arial',
+                fill: '#ffffff'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(panelX + 65, panelY + 115, '📜 出题', {
+                font: '14px STKaiti, KaiTi, Arial',
+                fill: '#ffffff'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(panelX + 65, panelY + 150, '点数：3', {
+                font: '14px STKaiti, KaiTi, Arial',
+                fill: '#ffff00'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            // 操作说明
+            scene.add.text(20, 55, '方向键移动', {
+                font: '14px STKaiti, KaiTi, Arial',
+                fill: '#aaaaaa'
+            }).setScrollFactor(0).setDepth(100);
+        }
+
+        function update() {
+            player.setVelocity(0);
+            const speed = 160;
+            
+            if (cursors.left.isDown) {
+                player.setVelocityX(-speed);
+                if (player.anims.currentAnim?.key !== 'walk-left') {
+                    player.anims.play('walk-left', true);
+                }
+            } else if (cursors.right.isDown) {
+                player.setVelocityX(speed);
+                if (player.anims.currentAnim?.key !== 'walk-right') {
+                    player.anims.play('walk-right', true);
+                }
+            }
+            
+            if (cursors.up.isDown) {
+                player.setVelocityY(-speed);
+                if (player.anims.currentAnim?.key !== 'walk-up') {
+                    player.anims.play('walk-up', true);
+                }
+            } else if (cursors.down.isDown) {
+                player.setVelocityY(speed);
+                if (player.anims.currentAnim?.key !== 'walk-down') {
+                    player.anims.play('walk-down', true);
+                }
+            }
+            
+            if (!cursors.left.isDown && !cursors.right.isDown && !cursors.up.isDown && !cursors.down.isDown) {
+                player.anims.stop();
+            }
+            
+            // AI 随机移动
+            agents.forEach(agent => {
+                if (Phaser.Math.Between(0, 100) < 2) {
+                    const vx = Phaser.Math.Between(-50, 50);
+                    agent.setVelocityX(vx);
+                }
+                if (Phaser.Math.Between(0, 100) < 2) {
+                    const vy = Phaser.Math.Between(-50, 50);
+                    agent.setVelocityY(vy);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

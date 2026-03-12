@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>长安文豪会 - 国内 CDN 版</title>
+    <style>
+        body { margin:0; padding:20px; background:#1a1a2e; color:white; text-align:center; font-family: Arial, sans-serif; }
+        #game { margin: 20px auto; border: 4px solid #8b4513; border-radius: 8px; }
+        .loading { color: #ffd700; font-size: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🎮 长安文豪会</h1>
+    <p class="loading" id="loading">加载游戏中...</p>
+    <div id="game"></div>
+    <p>按方向键移动棕色方块</p>
+    
+    <!-- 使用国内 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script>
+        console.log('开始加载...');
+        console.log('Phaser 版本:', typeof Phaser !== 'undefined' ? Phaser.VERSION : '未加载');
+        
+        // 检查 Phaser 是否加载成功
+        if (typeof Phaser === 'undefined') {
+            document.getElementById('loading').innerHTML = '❌ Phaser 加载失败，请刷新页面';
+        } else {
+            document.getElementById('loading').innerHTML = '✅ 游戏已启动';
+            
+            const config = {
+                type: Phaser.AUTO,
+                width: 800,
+                height: 600,
+                parent: 'game',
+                backgroundColor: '#2d4a22',
+                physics: {
+                    default: 'arcade',
+                    arcade: { debug: false }
+                },
+                scene: {
+                    preload: function() {
+                        // 创建玩家纹理
+                        const gfx = this.make.graphics();
+                        gfx.fillStyle(0x8B4513);
+                        gfx.fillRect(0, 0, 32, 32);
+                        gfx.generateTexture('player', 32, 32);
+                        gfx.clear();
+                        
+                        // 创建树
+                        gfx.fillStyle(0x228B22);
+                        gfx.fillCircle(16, 16, 12);
+                        gfx.fillStyle(0x8B4513);
+                        gfx.fillRect(12, 20, 8, 12);
+                        gfx.generateTexture('tree', 32, 32);
+                    },
+                    create: function() {
+                        // 玩家
+                        this.player = this.physics.add.sprite(400, 300, 'player');
+                        this.player.setCollideWorldBounds(true);
+                        
+                        // 装饰
+                        this.add.image(100, 150, 'tree');
+                        this.add.image(700, 200, 'tree');
+                        this.add.image(150, 450, 'tree');
+                        this.add.image(650, 500, 'tree');
+                        
+                        // 键盘
+                        this.cursors = this.input.keyboard.createCursorKeys();
+                        
+                        // 说明文字
+                        this.add.text(20, 20, '方向键移动', {
+                            font: '16px Arial',
+                            fill: '#ffffff'
+                        });
+                        
+                        console.log('游戏创建成功');
+                    },
+                    update: function() {
+                        this.player.setVelocity(0);
+                        const speed = 160;
+                        
+                        if (this.cursors.left.isDown) this.player.setVelocityX(-speed);
+                        else if (this.cursors.right.isDown) this.player.setVelocityX(speed);
+                        
+                        if (this.cursors.up.isDown) this.player.setVelocityY(-speed);
+                        else if (this.cursors.down.isDown) this.player.setVelocityY(speed);
+                    }
+                }
+            };
+            
+            const game = new Phaser.Game(config);
+            console.log('游戏实例已创建');
+        }
+    </script>
+</body>
+</html>

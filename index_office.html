@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>大厂风云 - 职场抓马生存战</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #1a1a2e; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh;
+            font-family: Arial, 'Microsoft YaHei', sans-serif;
+        }
+        #game-container { 
+            border: 4px solid #4a5568; 
+            border-radius: 8px; 
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script>
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container',
+            backgroundColor: '#2d3748',
+            physics: {
+                default: 'arcade',
+                arcade: { debug: false }
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
+
+        const game = new Phaser.Game(config);
+        let player, cursors, agents = [];
+
+        function preload() {
+            // 用代码生成所有素材
+            const gfx = this.make.graphics();
+            
+            // 玩家 - 程序员（蓝衬衫）
+            gfx.fillStyle(0x4299e1);
+            gfx.fillRect(8, 12, 16, 20);
+            gfx.fillStyle(0xfbd38d);
+            gfx.fillRect(10, 4, 12, 12);
+            gfx.fillStyle(0x2d3748);
+            gfx.fillRect(10, 4, 12, 6); // 头发
+            gfx.generateTexture('programmer', 32, 32);
+            gfx.clear();
+            
+            // 产品经理（白衬衫）
+            gfx.fillStyle(0xffffff);
+            gfx.fillRect(8, 12, 16, 20);
+            gfx.fillStyle(0xfbd38d);
+            gfx.fillRect(10, 4, 12, 12);
+            gfx.fillStyle(0x4a5568);
+            gfx.fillRect(10, 4, 12, 6);
+            gfx.generateTexture('pm', 32, 32);
+            gfx.clear();
+            
+            // 设计师（花衬衫）
+            gfx.fillStyle(0xed64a6);
+            gfx.fillRect(8, 12, 16, 20);
+            gfx.fillStyle(0xfbd38d);
+            gfx.fillRect(10, 4, 12, 12);
+            gfx.fillStyle(0x9f7aea);
+            gfx.fillRect(10, 4, 12, 6);
+            gfx.generateTexture('designer', 32, 32);
+            gfx.clear();
+            
+            // 老板（西装）
+            gfx.fillStyle(0x2d3748);
+            gfx.fillRect(8, 12, 16, 20);
+            gfx.fillStyle(0xfbd38d);
+            gfx.fillRect(10, 4, 12, 12);
+            gfx.fillStyle(0xffffff);
+            gfx.fillRect(14, 16, 4, 12); // 领带
+            gfx.generateTexture('boss', 32, 32);
+            gfx.clear();
+            
+            // 工位
+            gfx.fillStyle(0x718096);
+            gfx.fillRect(0, 16, 32, 16);
+            gfx.fillStyle(0x4a5568);
+            gfx.fillRect(4, 20, 10, 8); // 电脑
+            gfx.generateTexture('desk', 32, 32);
+            gfx.clear();
+            
+            // 会议室桌子
+            gfx.fillStyle(0x8b4513);
+            gfx.fillRect(0, 0, 60, 40);
+            gfx.generateTexture('meeting_table', 60, 40);
+            gfx.clear();
+            
+            // 植物
+            gfx.fillStyle(0x48bb78);
+            gfx.fillCircle(16, 20, 12);
+            gfx.fillStyle(0x2f855a);
+            gfx.fillCircle(16, 18, 8);
+            gfx.generateTexture('plant', 32, 32);
+            gfx.clear();
+            
+            // 咖啡机
+            gfx.fillStyle(0x4a5568);
+            gfx.fillRect(8, 8, 16, 24);
+            gfx.fillStyle(0xf56565);
+            gfx.fillCircle(16, 14, 6);
+            gfx.generateTexture('coffee', 32, 32);
+            gfx.clear();
+        }
+
+        function create() {
+            // 绘制办公室场景
+            drawOffice(this);
+            
+            // 玩家
+            player = this.physics.add.sprite(400, 300, 'programmer');
+            player.setDepth(10);
+            player.setCollideWorldBounds(true);
+            
+            // 其他员工
+            const pm = this.physics.add.sprite(300, 250, 'pm');
+            const designer = this.physics.add.sprite(500, 350, 'designer');
+            const boss = this.physics.add.sprite(400, 150, 'boss');
+            
+            agents = [pm, designer, boss];
+            
+            // 相机
+            this.cameras.main.startFollow(player, true, 0.05, 0.05);
+            this.cameras.main.setBounds(0, 0, 1000, 800);
+            this.physics.world.setBounds(0, 0, 1000, 800);
+            
+            // 键盘
+            cursors = this.input.keyboard.createCursorKeys();
+            
+            // UI
+            createUI(this);
+        }
+
+        function drawOffice(scene) {
+            const gfx = scene.add.graphics();
+            
+            // 地板
+            gfx.fillStyle(0xe2e8f0);
+            gfx.fillRect(0, 0, 1000, 800);
+            
+            // 地板格子
+            gfx.lineStyle(1, 0xcbd5e0);
+            for (let x = 0; x < 1000; x += 50) {
+                gfx.lineBetween(x, 0, x, 800);
+            }
+            for (let y = 0; y < 800; y += 50) {
+                gfx.lineBetween(0, y, 1000, y);
+            }
+            
+            // 工位区 - 左
+            for (let y = 200; y < 600; y += 80) {
+                scene.add.image(150, y, 'desk');
+                scene.add.image(150, y, 'programmer');
+            }
+            
+            // 工位区 - 右
+            for (let y = 200; y < 600; y += 80) {
+                scene.add.image(850, y, 'desk');
+                scene.add.image(850, y, 'designer');
+            }
+            
+            // 会议室
+            scene.add.image(500, 100, 'meeting_table');
+            
+            // 植物
+            scene.add.image(50, 50, 'plant');
+            scene.add.image(950, 50, 'plant');
+            scene.add.image(50, 750, 'plant');
+            scene.add.image(950, 750, 'plant');
+            
+            // 咖啡机
+            scene.add.image(900, 400, 'coffee');
+            
+            // 墙
+            gfx.lineStyle(4, 0x4a5568);
+            gfx.strokeRect(0, 0, 1000, 800);
+            
+            // 门
+            gfx.fillStyle(0x2d3748);
+            gfx.fillRect(450, 0, 100, 10);
+            
+            // 文字
+            scene.add.text(500, 30, '大厂风云 - 职场抓马生存战', {
+                font: 'bold 20px Arial',
+                fill: '#2d3748',
+                stroke: '#ffffff',
+                strokeThickness: 3
+            }).setOrigin(0.5);
+        }
+
+        function createUI(scene) {
+            // 顶部信息栏
+            const infoBg = scene.add.graphics();
+            infoBg.fillStyle(0x4a5568, 0.9);
+            infoBg.fillRect(0, 0, 800, 60);
+            infoBg.setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(20, 15, '📊 KPI: ' + Math.floor(Math.random() * 100), {
+                font: 'bold 16px Arial',
+                fill: '#ffffff'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(200, 15, '☕ 压力：' + Math.floor(Math.random() * 100) + '%', {
+                font: 'bold 16px Arial',
+                fill: '#f56565'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(400, 15, '💰 奖金池：' + Math.floor(Math.random() * 10000), {
+                font: 'bold 16px Arial',
+                fill: '#ffd700'
+            }).setScrollFactor(0).setDepth(100);
+            
+            // 底部状态栏
+            const statusBg = scene.add.graphics();
+            statusBg.fillStyle(0x2d3748, 0.9);
+            statusBg.fillRect(0, 540, 800, 60);
+            statusBg.setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(20, 555, '👤 你：程序员', {
+                font: '14px Arial',
+                fill: '#ffffff'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(200, 555, '👔 PM：催需求中', {
+                font: '14px Arial',
+                fill: '#ed64a6'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(400, 555, '🎨 设计：改稿中', {
+                font: '14px Arial',
+                fill: '#9f7aea'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(600, 555, '👨‍💼 老板：画饼中', {
+                font: '14px Arial',
+                fill: '#fbd38d'
+            }).setScrollFactor(0).setDepth(100);
+            
+            // 右侧工具面板
+            const panelBg = scene.add.graphics();
+            panelBg.fillStyle(0x4a5568, 0.9);
+            panelBg.fillRoundedRect(650, 70, 130, 200, 10);
+            panelBg.setScrollFactor(0).setDepth(99);
+            
+            scene.add.text(715, 90, '职场工具', {
+                font: 'bold 16px Arial',
+                fill: '#ffffff'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(715, 125, '📧 甩锅邮件', {
+                font: '14px Arial',
+                fill: '#ffffff'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(715, 160, '🍕 请客团建', {
+                font: '14px Arial',
+                fill: '#ffffff'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(715, 195, '📊 汇报 PPT', {
+                font: '14px Arial',
+                fill: '#ffffff'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(715, 235, '💼 晋升申请', {
+                font: '14px Arial',
+                fill: '#ffd700'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            // 操作说明
+            scene.add.text(20, 75, '方向键移动 | 职场生存战', {
+                font: '12px Arial',
+                fill: '#718096'
+            }).setScrollFactor(0).setDepth(100);
+        }
+
+        function update() {
+            player.setVelocity(0);
+            const speed = 160;
+            
+            if (cursors.left.isDown) player.setVelocityX(-speed);
+            else if (cursors.right.isDown) player.setVelocityX(speed);
+            
+            if (cursors.up.isDown) player.setVelocityY(-speed);
+            else if (cursors.down.isDown) player.setVelocityY(speed);
+            
+            // AI 随机移动
+            agents.forEach(agent => {
+                if (Phaser.Math.Between(0, 100) < 2) {
+                    agent.setVelocityX(Phaser.Math.Between(-50, 50));
+                }
+                if (Phaser.Math.Between(0, 100) < 2) {
+                    agent.setVelocityY(Phaser.Math.Between(-50, 50));
+                }
+            });
+        }
+    </script>
+</body>
+</html>

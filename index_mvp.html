@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>大厂风云 - 职场抓马生存战 MVP</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #1a1a2e; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        #game-container { 
+            border: 4px solid #4a5568; 
+            border-radius: 8px; 
+            position: relative;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffd700;
+            font-size: 20px;
+            background: rgba(0,0,0,0.9);
+            padding: 40px 60px;
+            border-radius: 10px;
+            z-index: 1000;
+            text-align: center;
+        }
+        #loading-text {
+            font-size: 14px;
+            color: #a0aec0;
+            margin-top: 15px;
+        }
+        /* UI 覆盖层 */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        /* 顶部信息栏 */
+        #top-bar {
+            background: rgba(74, 85, 104, 0.95);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: auto;
+        }
+        .stat {
+            margin: 0 10px;
+            font-size: 14px;
+        }
+        .stat-label { color: #a0aec0; }
+        .stat-value { font-weight: bold; color: #ffd700; }
+        .danger { color: #f56565 !important; }
+        
+        /* 进度条 */
+        #progress-container {
+            flex: 1;
+            margin: 0 20px;
+            background: #2d3748;
+            border-radius: 5px;
+            height: 20px;
+            overflow: hidden;
+        }
+        #progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #48bb78, #38a169);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        /* 技能栏 */
+        #skill-bar {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+        }
+        .skill-card {
+            background: linear-gradient(135deg, #4a5568, #2d3748);
+            border: 2px solid #718096;
+            border-radius: 8px;
+            padding: 10px;
+            width: 100px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .skill-card:hover {
+            transform: translateY(-2px);
+            border-color: #ffd700;
+            box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
+        }
+        .skill-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .skill-icon { font-size: 24px; }
+        .skill-name { font-size: 12px; margin-top: 5px; color: white; }
+        .skill-cost { font-size: 10px; color: #a0aec0; margin-top: 3px; }
+        
+        /* 事件弹窗 */
+        #event-modal {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            pointer-events: auto;
+            z-index: 1000;
+        }
+        #event-modal.active { display: block; }
+        #event-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #2d3748; }
+        #event-desc { font-size: 14px; color: #4a5568; margin-bottom: 20px; white-space: pre-line; }
+        #event-options { display: flex; flex-direction: column; gap: 10px; }
+        .event-option {
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .event-option:hover { background: #2d3748; }
+        
+        /* 员工状态面板 */
+        #employee-panel {
+            position: absolute;
+            top: 70px;
+            left: 10px;
+            background: rgba(45, 55, 72, 0.95);
+            border-radius: 8px;
+            padding: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        .employee-card {
+            background: #2d3748;
+            border-radius: 5px;
+            padding: 8px;
+            margin-bottom: 8px;
+            min-width: 200px;
+        }
+        .emp-name { font-size: 14px; font-weight: bold; color: white; }
+        .emp-role { font-size: 12px; color: #a0aec0; }
+        .emp-bar { 
+            height: 6px; 
+            background: #4a5568; 
+            border-radius: 3px; 
+            margin: 5px 0;
+            overflow: hidden;
+        }
+        .emp-bar-fill { height: 100%; transition: width 0.3s; }
+        .sanity-fill { background: #48bb78; }
+        .fatigue-fill { background: #f56565; }
+        .loyalty-fill { background: #4299e1; }
+        .emp-state { 
+            font-size: 11px; 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+            display: inline-block;
+            margin-top: 3px;
+        }
+        .state-normal { background: #48bb78; }
+        .state-stocking { background: #ecc94b; }
+        .state-angry { background: #f56565; }
+        .state-resigning { background: #9f7aea; }
+        
+        /* 游戏结束 */
+        #game-over {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            pointer-events: auto;
+            z-index: 2000;
+        }
+        #game-over.active { display: flex; }
+        #game-over-title { font-size: 48px; margin-bottom: 20px; }
+        #game-over-desc { font-size: 18px; color: #a0aec0; margin-bottom: 30px; }
+        #restart-btn {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        #restart-btn:hover { background: #38a169; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="loading">
+            <div>🎨 加载美术素材中...</div>
+            <div id="loading-text">0/31</div>
+        </div>
+        
+        <!-- UI 层 -->
+        <div id="ui-layer">
+            <!-- 顶部信息栏 -->
+            <div id="top-bar">
+                <div>
+                    <span class="stat-label">📅 第</span>
+                    <span class="stat-value" id="ui-day">1</span>
+                    <span class="stat-label">天</span>
+                </div>
+                
+                <div id="progress-container">
+                    <div id="progress-bar"></div>
+                </div>
+                <div>
+                    <span class="stat-label">📊 进度:</span>
+                    <span class="stat-value" id="ui-progress">0%</span>
+                </div>
+                
+                <div>
+                    <span class="stat-label">⚡ MP:</span>
+                    <span class="stat-value" id="ui-mp">100</span>
+                </div>
+                <div>
+                    <span class="stat-label">💰 预算:</span>
+                    <span class="stat-value" id="ui-budget">¥500</span>
+                </div>
+            </div>
+            
+            <!-- 员工状态面板 -->
+            <div id="employee-panel"></div>
+            
+            <!-- 技能栏 -->
+            <div id="skill-bar"></div>
+        </div>
+        
+        <!-- 事件弹窗 -->
+        <div id="event-modal">
+            <div id="event-title"></div>
+            <div id="event-desc"></div>
+            <div id="event-options"></div>
+        </div>
+        
+        <!-- 游戏结束 -->
+        <div id="game-over">
+            <div id="game-over-title"></div>
+            <div id="game-over-desc"></div>
+            <button id="restart-btn">再来一局</button>
+        </div>
+    </div>
+    
+    <!-- 游戏引擎 -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    
+    <!-- 游戏代码 -->
+    <script src="js/config/balance.js"></script>
+    <script src="js/entities/Employee.js"></script>
+    <script src="js/systems/SkillManager.js"></script>
+    <script src="js/systems/EventSystem.js"></script>
+    <script src="js/game.js"></script>
+    
+    <script>
+        // ========== Phaser 配置 ==========
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container',
+            pixelArt: true,
+            physics: {
+                default: 'arcade',
+                arcade: { debug: false }
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
+
+        const game = new Phaser.Game(config);
+        
+        // ========== 游戏状态 ==========
+        let mainGame;
+        let tickTimer;
+        const TICK_INTERVAL = 1000; // 1 秒 = 1 分钟游戏时间
+        let loadedCount = 0;
+        const totalAssets = 31;
+        
+        // ========== Phaser 回调 ==========
+        function preload() {
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loading-text');
+            
+            this.load.on('filecomplete', (key, type, data) => {
+                loadedCount++;
+                if (loadingText) {
+                    loadingText.textContent = `加载中... ${loadedCount}/${totalAssets}`;
+                }
+            });
+            
+            this.load.on('complete', () => {
+                loading.style.display = 'none';
+            });
+            
+            // ========== 加载真实美术素材 ==========
+            // 地板 - 使用办公室地板素材 (ID 280)
+            this.load.image('floor', 'assets/sprites/microverse/Modern_Office_Singles_32x32_280.png');
+            
+            // 办公桌 (10 种)
+            for (let i = 1; i <= 10; i++) {
+                this.load.image(`desk_${i}`, `assets/sprites/microverse/Modern_Office_Singles_32x32_${i}.png`);
+            }
+            
+            // 椅子 (10 种)
+            for (let i = 51; i <= 60; i++) {
+                this.load.image(`chair_${i}`, `assets/sprites/microverse/Modern_Office_Singles_32x32_${i}.png`);
+            }
+            
+            // 植物 (2 种)
+            this.load.image('plant_1', 'assets/sprites/microverse/Modern_Office_Singles_32x32_201.png');
+            this.load.image('plant_2', 'assets/sprites/microverse/Modern_Office_Singles_32x32_202.png');
+            
+            // 文件柜
+            this.load.image('cabinet_1', 'assets/sprites/microverse/Modern_Office_Singles_32x32_101.png');
+            
+            // 电脑
+            this.load.image('computer_1', 'assets/sprites/microverse/Modern_Office_Singles_32x32_151.png');
+            
+            // 角色 (Pixel Agents 精灵表，112x96)
+            // 使用完整角色图像（非 spritesheet），直接加载为单个图像
+            for (let i = 0; i <= 5; i++) {
+                this.load.image(`char_${i}`, `assets/sprites/pixel-agents/char_${i}.png`);
+            }
+            
+            // 状态图标（用代码生成）
+            const gfx = this.make.graphics();
+            // 摸鱼图标（鱼 - 蓝色椭圆）
+            gfx.fillStyle(0x4299e1);
+            gfx.fillEllipse(8, 8, 12, 8);
+            gfx.generateTexture('icon_stocking', 16, 16);
+            gfx.clear();
+            // 暴躁图标（火 - 红色三角）
+            gfx.fillStyle(0xf56565);
+            gfx.fillTriangle(8, 2, 4, 14, 12, 14);
+            gfx.generateTexture('icon_angry', 16, 16);
+            gfx.clear();
+            // 跑路图标（行李箱 - 紫色方块）
+            gfx.fillStyle(0x9f7aea);
+            gfx.fillRect(4, 6, 8, 6);
+            gfx.lineStyle(1, 0xffffff);
+            gfx.moveTo(8, 6);
+            gfx.lineTo(8, 12);
+            gfx.strokePath();
+            gfx.generateTexture('icon_resigning', 16, 16);
+            gfx.clear();
+        }
+
+        function create() {
+            gameScene = this;
+            mainGame = new MainGame();
+            mainGame.init(this);
+            
+            createScene(this);
+            createUI();
+            
+            // 全局拖拽处理
+            this.input.on('pointermove', (pointer) => {
+                if (dragTarget && dragTarget.sprite) {
+                    dragTarget.sprite.x = pointer.x - dragOffset.x;
+                    dragTarget.sprite.y = pointer.y - dragOffset.y;
+                }
+            });
+            
+            this.input.on('pointerup', () => {
+                if (dragTarget && dragTarget.sprite) {
+                    dragTarget.deskPosition = { 
+                        x: dragTarget.sprite.x, 
+                        y: dragTarget.sprite.y 
+                    };
+                    dragTarget.sprite.setDepth(3);
+                    dragTarget = null;
+                }
+            });
+            
+            tickTimer = this.time.addEvent({
+                delay: TICK_INTERVAL,
+                callback: gameTick,
+                callbackScope: this,
+                loop: true
+            });
+            
+            console.log('✅ 游戏启动！可拖拽员工调整工位');
+        }
+
+        let cursors;
+        let dragTarget = null; // 当前拖拽的员工
+        let dragOffset = { x: 0, y: 0 };
+        
+        function update() {
+            // 键盘控制已禁用，改用鼠标拖拽
+        }
+        
+        // ========== 游戏逻辑 ==========
+        let gameScene; // 保存场景引用
+        
+        function gameTick() {
+            if (mainGame.gameOver) return;
+            
+            mainGame.tick();
+            
+            if (mainGame.eventSystem.day % 1 === 0) {
+                const events = mainGame.eventSystem.checkDailyEvents();
+                events.forEach(event => {
+                    showEventModal(event);
+                });
+            }
+            
+            updateUI();
+            updateAllStateIcons(gameScene);
+            updateZoneEffects(gameScene);
+        }
+        
+        // ========== 更新员工状态图标 ==========
+        function updateEmployeeStateIcon(scene, emp) {
+            if (!emp.sprite) return;
+            
+            if (emp.stateIcon) {
+                emp.stateIcon.destroy();
+                emp.stateIcon = null;
+            }
+            
+            let iconKey = null;
+            if (emp.state === 'angry') {
+                iconKey = 'icon_angry';
+            } else if (emp.state === 'stocking') {
+                iconKey = 'icon_stocking';
+            } else if (emp.state === 'resigning') {
+                iconKey = 'icon_resigning';
+            }
+            
+            if (iconKey) {
+                const stateIcon = scene.add.image(emp.sprite.x + 25, emp.sprite.y - 25, iconKey);
+                stateIcon.setDisplaySize(20, 20);
+                stateIcon.setDepth(6);
+                emp.stateIcon = stateIcon;
+            }
+        }
+        
+        function updateAllStateIcons(scene) {
+            if (!scene || !mainGame.employees) return;
+            mainGame.employees.forEach(emp => {
+                updateEmployeeStateIcon(scene, emp);
+            });
+        }
+        
+        // ========== 区域效果系统 ==========
+        function updateZoneEffects(scene) {
+            if (!scene || !scene.zones || !mainGame.employees) return;
+            
+            mainGame.employees.forEach(emp => {
+                if (!emp.sprite) return;
+                
+                const x = emp.sprite.x;
+                const y = emp.sprite.y;
+                
+                // 检查是否在会议室
+                const meeting = scene.zones.meeting;
+                if (x >= meeting.x && x <= meeting.x + meeting.width &&
+                    y >= meeting.y && y <= meeting.y + meeting.height) {
+                    // 会议室效果：进度 +0.2，情绪 -0.3
+                    if (Math.random() < 0.1) { // 10% 概率每分钟
+                        emp.addProgress(0.2);
+                        emp.changeSanity(-0.3, '开会');
+                    }
+                }
+                
+                // 检查是否在咖啡厅
+                const cafe = scene.zones.cafe;
+                if (x >= cafe.x && x <= cafe.x + cafe.width &&
+                    y >= cafe.y && y <= cafe.y + cafe.height) {
+                    // 咖啡厅效果：情绪 +0.5，疲劳 -0.3
+                    if (Math.random() < 0.1) { // 10% 概率每分钟
+                        emp.changeSanity(0.5, '喝咖啡');
+                        emp.changeFatigue(-0.3, '喝咖啡');
+                    }
+                }
+            });
+        }
+        
+        // ========== 创建角色动画（简化版）==========
+        function createCharacterAnimations(scene) {
+            try {
+                for (let i = 0; i <= 5; i++) {
+                    const key = `char_${i}`;
+                    
+                    // 检查动画是否已存在
+                    if (!scene.anims.exists(`char_${i}_walk_down`)) {
+                        scene.anims.create({
+                            key: `char_${i}_walk_down`,
+                            frames: scene.anims.generateFrameNumbers(key, { start: 0, end: 6 }),
+                            frameRate: 10,
+                            repeat: -1
+                        });
+                    }
+                }
+            } catch(e) {
+                console.warn('动画创建失败:', e);
+            }
+        }
+        
+        // ========== 场景创建（真实地板贴图版）==========
+        function createScene(scene) {
+            // 1. 背景
+            scene.cameras.main.setBackgroundColor('#e8e8e8');
+            
+            // 2. 地板 - 使用真实美术素材平铺
+            const floorTileSize = 32;
+            for (let x = 0; x < 800; x += floorTileSize) {
+                for (let y = 0; y < 600; y += floorTileSize) {
+                    const floor = scene.add.image(x + floorTileSize/2, y + floorTileSize/2, 'floor');
+                    floor.setDisplaySize(floorTileSize, floorTileSize);
+                    floor.setDepth(0);
+                }
+            }
+            
+            // 3. 办公区域 - 2x2 布局
+            // [0][1]
+            // [2][3]
+            const positions = [
+                { x: 280, y: 220 }, // 左上 - 小明
+                { x: 520, y: 220 }, // 右上 - 小红
+                { x: 280, y: 400 }, // 左下 - 小刚
+                { x: 520, y: 400 }  // 右下 - 小丽
+            ];
+            
+            mainGame.employees.forEach((emp, index) => {
+                const pos = positions[index] || positions[0];
+                const x = pos.x;
+                const y = pos.y;
+                
+                // 桌子（最后面）
+                const deskKey = `desk_${(index % 10) + 1}`;
+                const desk = scene.add.image(x, y - 15, deskKey);
+                desk.setDisplaySize(70, 50);
+                desk.setDepth(1);
+                
+                // 电脑（在桌子上）
+                const computer = scene.add.image(x - 18, y - 20, 'computer_1');
+                computer.setDisplaySize(25, 20);
+                computer.setDepth(2);
+                
+                // 员工角色（可拖拽）
+                const charKey = `char_${index % 6}`;
+                // 使用 Pixel Agents 完整角色图像（112x96），等比缩放到合适大小
+                const playerSprite = scene.add.sprite(x, y + 32, charKey);
+                playerSprite.setDisplaySize(96, 80);
+                playerSprite.setDepth(3);
+                playerSprite.setInteractive({ cursor: 'grab' });
+                
+                // 拖拽事件
+                playerSprite.on('pointerdown', (pointer) => {
+                    dragTarget = emp;
+                    dragOffset.x = pointer.x - playerSprite.x;
+                    dragOffset.y = pointer.y - playerSprite.y;
+                    playerSprite.setDepth(10);
+                });
+                
+                playerSprite.on('pointerup', () => {
+                    if (dragTarget === emp) {
+                        dragTarget = null;
+                        playerSprite.setDepth(3);
+                        emp.deskPosition = { x: playerSprite.x, y: playerSprite.y };
+                    }
+                });
+                
+                playerSprite.on('pointermove', (pointer) => {
+                    if (dragTarget === emp) {
+                        playerSprite.x = pointer.x - dragOffset.x;
+                        playerSprite.y = pointer.y - dragOffset.y;
+                    }
+                });
+                
+                // 状态图标
+                emp.stateIcon = null;
+                updateEmployeeStateIcon(scene, emp);
+                
+                // 椅子（角色前面，更明显）- 素材是 64x96，不需要放大太多
+                const chairKey = `chair_${51 + (index % 10)}`;
+                const chair = scene.add.image(x, y + 55, chairKey);
+                chair.setDisplaySize(48, 70);
+                chair.setDepth(5);
+                
+                emp.sprite = playerSprite;
+                emp.deskPosition = { x, y };
+                
+                // 名牌
+                scene.add.text(x, y + 55, emp.name, {
+                    font: 'bold 11px Arial',
+                    fill: '#2d3748',
+                    stroke: '#ffffff',
+                    strokeThickness: 2
+                }).setOrigin(0.5).setDepth(5);
+                
+                scene.add.text(x, y + 68, emp.role, {
+                    font: '9px Arial',
+                    fill: '#718096'
+                }).setOrigin(0.5).setDepth(5);
+            });
+            
+            // 4. 区域标记（会议室/咖啡厅）
+            // 会议室 - 上方中央
+            const meetingZone = scene.add.graphics();
+            meetingZone.fillStyle(0x4a5568, 0.25);
+            meetingZone.fillRoundedRect(300, 50, 200, 100, 10);
+            meetingZone.lineStyle(3, 0x2d3748);
+            meetingZone.strokeRoundedRect(300, 50, 200, 100, 10);
+            meetingZone.setDepth(0);
+            
+            scene.add.text(400, 90, '📢 会议室', {
+                font: 'bold 16px Arial',
+                fill: '#2d3748',
+                stroke: '#ffffff',
+                strokeThickness: 2
+            }).setOrigin(0.5).setDepth(1);
+            
+            // 咖啡厅 - 右侧中央
+            const cafeZone = scene.add.graphics();
+            cafeZone.fillStyle(0xc05621, 0.25);
+            cafeZone.fillRoundedRect(650, 250, 130, 100, 10);
+            cafeZone.lineStyle(3, 0x9c4221);
+            cafeZone.strokeRoundedRect(650, 250, 130, 100, 10);
+            cafeZone.setDepth(0);
+            
+            scene.add.text(715, 290, '☕ 咖啡厅', {
+                font: 'bold 14px Arial',
+                fill: '#9c4221',
+                stroke: '#ffffff',
+                strokeThickness: 2
+            }).setOrigin(0.5).setDepth(1);
+            
+            // 5. 装饰物
+            scene.add.image(50, 50, 'plant_1').setDisplaySize(45, 45).setDepth(1);
+            scene.add.image(750, 50, 'plant_2').setDisplaySize(45, 45).setDepth(1);
+            scene.add.image(50, 550, 'plant_2').setDisplaySize(45, 45).setDepth(1);
+            scene.add.image(750, 550, 'plant_1').setDisplaySize(45, 45).setDepth(1);
+            
+            scene.add.image(40, 300, 'cabinet_1').setDisplaySize(55, 70).setDepth(1);
+            scene.add.image(760, 300, 'cabinet_1').setDisplaySize(55, 70).setDepth(1);
+            
+            // 6. 墙边界
+            const wallGfx = scene.add.graphics();
+            wallGfx.lineStyle(3, 0x4a5568);
+            wallGfx.strokeRect(0, 0, 800, 600);
+            wallGfx.setDepth(100);
+            
+            // 保存区域引用
+            gameScene.zones = {
+                meeting: { x: 300, y: 50, width: 200, height: 100, name: '会议室' },
+                cafe: { x: 650, y: 250, width: 130, height: 100, name: '咖啡厅' }
+            };
+        }
+        
+        // ========== UI 系统 ==========
+        function createUI() {
+            createSkillBar();
+            updateUI();
+        }
+        
+        function createSkillBar() {
+            const skillBar = document.getElementById('skill-bar');
+            const skills = mainGame.skillManager.skills;
+            
+            Object.values(skills).forEach(skill => {
+                const card = document.createElement('div');
+                card.className = 'skill-card';
+                card.id = `skill-${skill.id}`;
+                card.innerHTML = `
+                    <div class="skill-icon">${skill.icon}</div>
+                    <div class="skill-name">${skill.name}</div>
+                    <div class="skill-cost">${skill.costType === 'management' ? '⚡' : '💰'}${skill.cost}</div>
+                `;
+                card.onclick = () => useSkill(skill.id);
+                skillBar.appendChild(card);
+            });
+        }
+        
+        function updateUI() {
+            const status = mainGame.getStatus();
+            
+            document.getElementById('ui-day').textContent = status.day;
+            document.getElementById('ui-progress').textContent = `${status.progressPercent}%`;
+            document.getElementById('ui-mp').textContent = status.managementPoints;
+            document.getElementById('ui-budget').textContent = `¥${status.budget}`;
+            
+            document.getElementById('progress-bar').style.width = `${status.progressPercent}%`;
+            
+            updateEmployeePanel();
+            updateSkillButtons();
+        }
+        
+        function updateEmployeePanel() {
+            const panel = document.getElementById('employee-panel');
+            panel.innerHTML = '';
+            
+            mainGame.employees.forEach(emp => {
+                const card = document.createElement('div');
+                card.className = 'employee-card';
+                
+                const stateClass = `state-${emp.state}`;
+                const stateName = emp.getStateName(emp.state);
+                
+                card.innerHTML = `
+                    <div class="emp-name">${emp.name}</div>
+                    <div class="emp-role">${emp.role} | ${stateName}</div>
+                    <div class="emp-bar"><div class="emp-bar-fill sanity-fill" style="width:${emp.sanity}%"></div></div>
+                    <div class="emp-bar"><div class="emp-bar-fill fatigue-fill" style="width:${emp.fatigue}%"></div></div>
+                    <div class="emp-bar"><div class="emp-bar-fill loyalty-fill" style="width:${emp.loyalty}%"></div></div>
+                    <div class="emp-state ${stateClass}">${stateName}</div>
+                `;
+                
+                panel.appendChild(card);
+            });
+        }
+        
+        function updateSkillButtons() {
+            Object.values(mainGame.skillManager.skills).forEach(skill => {
+                const card = document.getElementById(`skill-${skill.id}`);
+                const canUse = mainGame.skillManager.canUseSkill(skill.id).can;
+                card.classList.toggle('disabled', !canUse);
+            });
+        }
+        
+        function useSkill(skillId) {
+            const result = mainGame.skillManager.useSkill(skillId);
+            if (result.success) {
+                updateUI();
+            } else {
+                alert(result.reason);
+            }
+        }
+        
+        // ========== 事件系统 ==========
+        function showEventModal(event) {
+            tickTimer.paused = true;
+            
+            const modal = document.getElementById('event-modal');
+            const title = document.getElementById('event-title');
+            const desc = document.getElementById('event-desc');
+            const options = document.getElementById('event-options');
+            
+            title.textContent = `📢 ${event.name}`;
+            desc.textContent = `${event.description}\n${event.target ? '目标：' + event.target.name : ''}`;
+            
+            options.innerHTML = '';
+            event.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'event-option';
+                btn.textContent = opt.text;
+                if (opt.cost) {
+                    const costText = [];
+                    if (opt.cost.management) costText.push(`⚡${opt.cost.management}`);
+                    if (opt.cost.budget) costText.push(`💰${opt.cost.budget}`);
+                    btn.textContent += ` (${costText.join(', ')})`;
+                }
+                btn.onclick = () => {
+                    mainGame.eventSystem.resolveEvent(event, index);
+                    modal.classList.remove('active');
+                    tickTimer.paused = false;
+                    updateUI();
+                };
+                options.appendChild(btn);
+            });
+            
+            modal.classList.add('active');
+        }
+        
+        // ========== 游戏结束 ==========
+        function checkGameOver() {
+            const result = mainGame.checkGameOver();
+            
+            if (result) {
+                const gameOverScreen = document.getElementById('game-over');
+                const title = document.getElementById('game-over-title');
+                const desc = document.getElementById('game-over-desc');
+                
+                if (result === 'win') {
+                    title.textContent = '🎉 恭喜通关！';
+                    title.style.color = '#48bb78';
+                    desc.textContent = `项目提前完成！用了${mainGame.day}天`;
+                } else if (result === 'lose') {
+                    title.textContent = '❌ 游戏失败';
+                    title.style.color = '#f56565';
+                    desc.textContent = '项目黄了，下次努力吧...';
+                } else {
+                    title.textContent = '😐 勉强完成';
+                    title.style.color = '#ecc94b';
+                    desc.textContent = '项目完成了，但是延期了...';
+                }
+                
+                gameOverScreen.classList.add('active');
+                tickTimer.remove();
+            }
+        }
+        
+        document.getElementById('restart-btn').onclick = () => {
+            location.reload();
+        };
+    </script>
+</body>
+</html>

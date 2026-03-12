@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>测试</title>
+</head>
+<body style="background:#1a1a2e; color:white; text-align:center; padding:50px;">
+    <h1>✅ 服务器正常！</h1>
+    <p>如果你能看到这个页面，说明服务器没问题。</p>
+    <p>游戏加载中...</p>
+    <div id="game" style="margin-top:20px; width:800px; height:600px; background:#2d4a22; margin:20px auto; border:4px solid #8b4513;"></div>
+    <p>按方向键移动</p>
+    
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script>
+        console.log('Phaser 版本:', Phaser.VERSION);
+        
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game',
+            backgroundColor: '#2d4a22',
+            scene: {
+                preload: function() {
+                    // 创建玩家
+                    const gfx = this.make.graphics();
+                    gfx.fillStyle(0x8B4513);
+                    gfx.fillRect(0, 0, 32, 32);
+                    gfx.generateTexture('player', 32, 32);
+                },
+                create: function() {
+                    this.player = this.physics.add.sprite(400, 300, 'player');
+                    this.player.setCollideWorldBounds(true);
+                    
+                    this.cursors = this.input.keyboard.createCursorKeys();
+                    
+                    this.add.text(20, 20, '方向键移动', {
+                        font: '16px Arial',
+                        fill: '#ffffff'
+                    });
+                },
+                update: function() {
+                    this.player.setVelocity(0);
+                    const speed = 160;
+                    
+                    if (this.cursors.left.isDown) this.player.setVelocityX(-speed);
+                    else if (this.cursors.right.isDown) this.player.setVelocityX(speed);
+                    
+                    if (this.cursors.up.isDown) this.player.setVelocityY(-speed);
+                    else if (this.cursors.down.isDown) this.player.setVelocityY(speed);
+                }
+            }
+        };
+        
+        const game = new Phaser.Game(config);
+        
+        console.log('游戏已启动');
+    </script>
+</body>
+</html>

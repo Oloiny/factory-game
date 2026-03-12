@@ -1,0 +1,63 @@
+{
+  "name": "Microverse 素材索引",
+  "source": "https://github.com/KsanaDock/Microverse",
+  "license": "MIT (代码) / 需确认 LimeZu 素材授权",
+  "lastUpdated": "2026-03-11",
+  
+  "officeObjects": {
+    "description": "339 个 32x32 办公室物件",
+    "path": "assets/sprites/microverse/",
+    "pattern": "Modern_Office_Singles_32x32_{id}.png",
+    "idRange": [1, 339],
+    "categories": {
+      "desks": {"ids": [1, 50], "description": "办公桌"},
+      "chairs": {"ids": [51, 100], "description": "椅子"},
+      "storage": {"ids": [101, 150], "description": "文件柜/储物"},
+      "electronics": {"ids": [151, 200], "description": "电脑/打印机/电子设备"},
+      "decorations": {"ids": [201, 250], "description": "植物/装饰画/摆件"},
+      "misc": {"ids": [251, 339], "description": "其他"}
+    }
+  },
+  
+  "characters": {
+    "description": "8 个角色精灵表 (1792x1280, 56 列 x40 行)",
+    "path": "assets/sprites/microverse/characters/",
+    "frameSize": {"width": 32, "height": 32},
+    "grid": {"cols": 56, "rows": 40},
+    "list": [
+      {"name": "alice", "file": "Alicex32.png", "role": "项目经理"},
+      {"name": "grace", "file": "Gracex32.png", "role": "数据分析师"},
+      {"name": "jack", "file": "Jackx32.png", "role": "设计师"},
+      {"name": "joe", "file": "Joex32.png", "role": "技术专家"},
+      {"name": "lea", "file": "Leax32.png", "role": "市场营销"},
+      {"name": "monica", "file": "Monicax32.png", "role": "HR"},
+      {"name": "stephen", "file": "Stephenx32.png", "role": "财务"},
+      {"name": "tom", "file": "Tomx32.png", "role": "软件开发"}
+    ],
+    "animationHint": {
+      "description": "假设布局：每行一个方向/动作，每行 4 帧",
+      "walk_down": {"startRow": 0, "endRow": 4, "framesPerRow": 4},
+      "walk_up": {"startRow": 4, "endRow": 8, "framesPerRow": 4},
+      "walk_left": {"startRow": 8, "endRow": 12, "framesPerRow": 4},
+      "walk_right": {"startRow": 12, "endRow": 16, "framesPerRow": 4}
+    }
+  },
+  
+  "portraits": {
+    "description": "8 个角色头像 (32x32)",
+    "path": "assets/sprites/microverse/portraits/",
+    "pattern": "{Name}P32.png",
+    "list": ["Alice", "Grace", "Jack", "Joe", "Lea", "Monica", "Stephen", "Tom"]
+  },
+  
+  "ui": {
+    "description": "UI 素材",
+    "path": "assets/sprites/microverse/ui/",
+    "files": [
+      {"key": "gui", "file": "GUI.png", "description": "通用 GUI"},
+      {"key": "dialog_bg", "file": "dialog_bubble_bg.png", "description": "对话气泡背景"},
+      {"key": "ui_style1", "file": "Modern_UI_Style_1_32x32.png", "description": "现代 UI 风格 1"},
+      {"key": "ui_style2", "file": "Modern_UI_Style_2_32x32.png", "description": "现代 UI 风格 2"}
+    ]
+  }
+}

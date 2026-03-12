@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>大厂风云 - 真实素材演示版</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #1a1a2e; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh;
+        }
+        #game-container { 
+            border: 4px solid #4a5568; 
+            border-radius: 8px; 
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffd700;
+            font-size: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 40px 60px;
+            border-radius: 10px;
+        }
+        #loading-progress {
+            width: 200px;
+            height: 10px;
+            background: #2d3748;
+            border-radius: 5px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+        #loading-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #f6ad55);
+            width: 0%;
+            transition: width 0.2s;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="loading">
+            <div>🎨 加载素材中...</div>
+            <div id="loading-text" style="font-size: 14px; margin-top: 10px; color: #a0aec0;">0/366</div>
+            <div id="loading-progress"><div id="loading-bar"></div></div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script src="js/assetLoader.js"></script>
+    <script>
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container',
+            pixelArt: true,
+            physics: {
+                default: 'arcade',
+                arcade: { debug: false }
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
+
+        const game = new Phaser.Game(config);
+        let player, cursors, agents = [];
+        let assetLoader;
+
+        function preload() {
+            const loading = document.getElementById('loading');
+            const loadingBar = document.getElementById('loading-bar');
+            const loadingText = document.getElementById('loading-text');
+            
+            this.load.on('complete', () => {
+                loading.style.display = 'none';
+            });
+            
+            this.load.on('filecomplete', (key, type, data) => {
+                assetLoader.progress++;
+                const percent = Math.round((assetLoader.progress / assetLoader.totalFiles) * 100);
+                loadingBar.style.width = percent + '%';
+                loadingText.textContent = `${assetLoader.progress}/${assetLoader.totalFiles} (${percent}%)`;
+            });
+            
+            // 使用 AssetLoader 加载所有真实素材
+            assetLoader = new AssetLoader(this);
+            assetLoader.loadAll();
+        }
+
+        function create() {
+            // 创建角色动画（如果精灵表布局正确的话）
+            // assetLoader.createAllCharacterAnimations(8);
+            
+            // === 使用真实素材搭建办公室场景 ===
+            createOfficeWithAssets(this);
+            
+            // === 玩家角色 - 使用 Pixel Agents 素材 (尺寸小，立即可用) ===
+            player = this.physics.add.sprite(400, 300, 'pixel_agents_char_0');
+            player.setDisplaySize(64, 64);
+            player.setDepth(10);
+            player.setCollideWorldBounds(true);
+            
+            // === 其他员工 - 使用不同角色 ===
+            const pm = this.physics.add.sprite(300, 250, 'pixel_agents_char_1');
+            pm.setDisplaySize(64, 64);
+            
+            const designer = this.physics.add.sprite(500, 350, 'pixel_agents_char_2');
+            designer.setDisplaySize(64, 64);
+            
+            const boss = this.physics.add.sprite(400, 150, 'pixel_agents_char_3');
+            boss.setDisplaySize(64, 64);
+            
+            agents = [pm, designer, boss];
+            
+            // === 相机 ===
+            this.cameras.main.startFollow(player, true, 0.05, 0.05);
+            this.cameras.main.setBounds(0, 0, 1000, 800);
+            this.physics.world.setBounds(0, 0, 1000, 800);
+            
+            // === 键盘 ===
+            cursors = this.input.keyboard.createCursorKeys();
+            
+            // === UI ===
+            createUI(this);
+            
+            // === 调试信息 ===
+            console.log('✅ 素材加载完成！');
+            console.log('📦 可用素材:', assetLoader.totalFiles, '个');
+        }
+
+        function createOfficeWithAssets(scene) {
+            // 1. 地板 - 用代码绘制格子
+            const gfx = scene.add.graphics();
+            gfx.fillStyle(0xe8e8e8);
+            gfx.fillRect(0, 0, 1000, 800);
+            
+            // 地板格子
+            gfx.lineStyle(1, 0xd0d0d0);
+            for (let x = 0; x < 1000; x += 50) {
+                gfx.lineBetween(x, 0, x, 800);
+            }
+            for (let y = 0; y < 800; y += 50) {
+                gfx.lineBetween(0, y, 1000, y);
+            }
+            
+            // 2. 使用真实素材添加办公室物件
+            // 办公桌区域 - 左侧
+            for (let i = 0; i < 4; i++) {
+                // 桌子 (使用 microverse 素材 1-10 号)
+                const deskKey = `microverse_office_${String(i + 1).padStart(3, '0')}`;
+                const desk = scene.add.image(150, 200 + i * 120, deskKey);
+                desk.setDisplaySize(64, 64);
+                desk.setDepth(1);
+            }
+            
+            // 办公桌区域 - 右侧
+            for (let i = 0; i < 4; i++) {
+                const deskKey = `microverse_office_${String(i + 11).padStart(3, '0')}`;
+                const desk = scene.add.image(850, 200 + i * 120, deskKey);
+                desk.setDisplaySize(64, 64);
+                desk.setDepth(1);
+            }
+            
+            // 椅子 (使用 51-60 号)
+            for (let i = 0; i < 8; i++) {
+                const chairKey = `microverse_office_${String(51 + i).padStart(3, '0')}`;
+                const x = i < 4 ? 150 : 850;
+                const y = 230 + (i % 4) * 120;
+                const chair = scene.add.image(x, y, chairKey);
+                chair.setDisplaySize(48, 48);
+                chair.setDepth(1);
+            }
+            
+            // 会议室桌子 (中央)
+            const meetingTable = scene.add.image(500, 100, 'microverse_office_025');
+            meetingTable.setDisplaySize(120, 80);
+            meetingTable.setDepth(1);
+            
+            // 植物装饰 (角落)
+            const plantKeys = ['microverse_office_201', 'microverse_office_202', 'microverse_office_203', 'microverse_office_204'];
+            const plantPositions = [[50, 50], [950, 50], [50, 750], [950, 750]];
+            plantPositions.forEach((pos, i) => {
+                const plant = scene.add.image(pos[0], pos[1], plantKeys[i]);
+                plant.setDisplaySize(48, 48);
+                plant.setDepth(2);
+            });
+            
+            // 咖啡机
+            const coffee = scene.add.image(900, 400, 'microverse_office_180');
+            coffee.setDisplaySize(64, 64);
+            coffee.setDepth(2);
+            
+            // 文件柜
+            const cabinet1 = scene.add.image(100, 400, 'microverse_office_101');
+            cabinet1.setDisplaySize(64, 64);
+            cabinet1.setDepth(1);
+            
+            const cabinet2 = scene.add.image(900, 100, 'microverse_office_102');
+            cabinet2.setDisplaySize(64, 64);
+            cabinet2.setDepth(1);
+            
+            // 墙
+            gfx.lineStyle(4, 0x4a5568);
+            gfx.strokeRect(0, 0, 1000, 800);
+            
+            // 门
+            gfx.fillStyle(0x2d3748);
+            gfx.fillRect(450, 0, 100, 10);
+            
+            // 标题
+            scene.add.text(500, 30, '🏢 大厂风云 - 真实素材演示', {
+                font: 'bold 20px Arial',
+                fill: '#2d3748',
+                stroke: '#ffffff',
+                strokeThickness: 3
+            }).setOrigin(0.5);
+        }
+
+        function createUI(scene) {
+            // 顶部信息栏
+            const infoBg = scene.add.graphics();
+            infoBg.fillStyle(0x4a5568, 0.9);
+            infoBg.fillRect(0, 0, 800, 60);
+            infoBg.setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(20, 15, '📊 KPI: ' + Math.floor(Math.random() * 100), {
+                font: 'bold 16px Arial',
+                fill: '#ffffff'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(200, 15, '😰 压力：' + Math.floor(Math.random() * 100) + '%', {
+                font: 'bold 16px Arial',
+                fill: '#f56565'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(400, 15, '💰 奖金池：¥' + Math.floor(Math.random() * 10000), {
+                font: 'bold 16px Arial',
+                fill: '#ffd700'
+            }).setScrollFactor(0).setDepth(100);
+            
+            // 底部状态栏
+            const statusBg = scene.add.graphics();
+            statusBg.fillStyle(0x2d3748, 0.9);
+            statusBg.fillRect(0, 540, 800, 60);
+            statusBg.setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(20, 555, '👤 你：程序员', {
+                font: '14px Arial',
+                fill: '#ffffff'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(200, 555, '👔 PM：催需求中', {
+                font: '14px Arial',
+                fill: '#ed64a6'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(400, 555, '🎨 设计：改稿中', {
+                font: '14px Arial',
+                fill: '#9f7aea'
+            }).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(600, 555, '👨‍💼 老板：画饼中', {
+                font: '14px Arial',
+                fill: '#fbd38d'
+            }).setScrollFactor(0).setDepth(100);
+            
+            // 右侧工具面板
+            const panelBg = scene.add.graphics();
+            panelBg.fillStyle(0x4a5568, 0.9);
+            panelBg.fillRoundedRect(650, 70, 130, 200, 10);
+            panelBg.setScrollFactor(0).setDepth(99);
+            
+            scene.add.text(715, 90, '职场工具', {
+                font: 'bold 16px Arial',
+                fill: '#ffffff'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(715, 125, '📧 甩锅邮件', {
+                font: '14px Arial',
+                fill: '#ffffff'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(715, 160, '🍕 请客团建', {
+                font: '14px Arial',
+                fill: '#ffffff'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(715, 195, '📊 汇报 PPT', {
+                font: '14px Arial',
+                fill: '#ffffff'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            scene.add.text(715, 235, '💼 晋升申请', {
+                font: '14px Arial',
+                fill: '#ffd700'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+            
+            // 操作说明
+            scene.add.text(20, 75, '方向键移动 | 真实素材演示版', {
+                font: '12px Arial',
+                fill: '#718096'
+            }).setScrollFactor(0).setDepth(100);
+        }
+
+        function update() {
+            player.setVelocity(0);
+            const speed = 160;
+            
+            if (cursors.left.isDown) player.setVelocityX(-speed);
+            else if (cursors.right.isDown) player.setVelocityX(speed);
+            
+            if (cursors.up.isDown) player.setVelocityY(-speed);
+            else if (cursors.down.isDown) player.setVelocityY(speed);
+            
+            // AI 随机移动
+            agents.forEach(agent => {
+                if (Phaser.Math.Between(0, 100) < 2) {
+                    agent.setVelocityX(Phaser.Math.Between(-50, 50));
+                }
+                if (Phaser.Math.Between(0, 100) < 2) {
+                    agent.setVelocityY(Phaser.Math.Between(-50, 50));
+                }
+            });
+        }
+    </script>
+</body>
+</html>
