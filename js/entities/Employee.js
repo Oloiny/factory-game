@@ -286,31 +286,89 @@ class Employee {
     };
   }
   
-  // ========== 记忆系统 ==========
-  
+  // ========== 记忆系统（借鉴斯坦福小镇记忆流）==========
+
   addMemory(memory) {
-    // memory: { type, content, timestamp, intensity }
+    // memory: { type, content, timestamp, importance, ... }
+    // importance: 1~10，决定记忆的存留优先级
+    if (memory.importance === undefined) {
+      memory.importance = memory.intensity || 3; // 兼容旧字段
+    }
     this.memories.push(memory);
-    
-    // 限制记忆数量
-    if (this.memories.length > 50) {
+
+    // 超过上限时，淘汰重要性最低的记忆（而非最旧的）
+    if (this.memories.length > 100) {
+      // 按重要性升序排，删掉最不重要的
+      this.memories.sort((a, b) => (a.importance || 0) - (b.importance || 0));
       this.memories.shift();
     }
   }
-  
+
+  /**
+   * 检索记忆：按重要性+时近性综合评分
+   * @param {Object} options
+   *   - topN: 返回条数（默认5）
+   *   - type: 过滤类型
+   *   - minImportance: 最低重要性阈值
+   */
+  retrieveMemories({ topN = 5, type = null, minImportance = 0 } = {}) {
+    const now = Date.now();
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+    let pool = this.memories;
+    if (type) pool = pool.filter(m => m.type === type);
+    if (minImportance > 0) pool = pool.filter(m => (m.importance || 0) >= minImportance);
+
+    // 综合评分：重要性（0.6）+ 时近性（0.4）
+    return pool
+      .map(m => {
+        const ageDays = (now - m.timestamp) / ONE_DAY_MS;
+        const recencyScore = Math.max(0, 1 - ageDays / 7); // 7天内线性衰减
+        const score = (m.importance || 0) * 0.6 + recencyScore * 10 * 0.4;
+        return { ...m, _score: score };
+      })
+      .sort((a, b) => b._score - a._score)
+      .slice(0, topN);
+  }
+
   getRecentMemories(hours = 24) {
     const cutoff = Date.now() - hours * 60 * 60 * 1000;
     return this.memories.filter(m => m.timestamp > cutoff);
   }
-  
+
   // ========== 关系系统 ==========
-  
+
   setRelationship(employeeId, value) {
     this.relationships[employeeId] = Math.max(-100, Math.min(100, value));
   }
-  
+
   getRelationship(employeeId) {
     return this.relationships[employeeId] || 0;
+  }
+
+  /**
+   * 变更与某员工的关系值，并记录原因
+   */
+  changeRelationship(employeeId, delta, reason = '') {
+    const oldVal = this.getRelationship(employeeId);
+    const newVal = Math.max(-100, Math.min(100, oldVal + delta));
+    this.relationships[employeeId] = newVal;
+
+    if (Math.abs(delta) >= 5) {
+      console.log(`[${this.name}] 与 ${employeeId} 关系 ${oldVal.toFixed(0)} → ${newVal.toFixed(0)} (${delta >= 0 ? '+' : ''}${delta.toFixed(0)}) ${reason}`);
+    }
+
+    // 关系大幅变化时写入记忆
+    if (Math.abs(delta) >= 10) {
+      this.addMemory({
+        type: 'relationship_change',
+        content: `与${employeeId}的关系因"${reason}"变化了${delta > 0 ? '+' : ''}${delta.toFixed(0)}`,
+        targetId: employeeId,
+        delta,
+        importance: Math.min(10, Math.abs(delta) / 5),
+        timestamp: Date.now(),
+      });
+    }
   }
   
   // ========== 序列化 ==========

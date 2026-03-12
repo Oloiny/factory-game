@@ -32,17 +32,7 @@ class MainGame {
     // 初始化系统
     this.skillManager = new SkillManager(this);
     this.eventSystem = new EventSystem(this);
-    this.gossipSystem = {
-      spreadGossip: (gossip) => {
-        console.log(`📢 八卦传播：${gossip.content}`);
-        // 简化版：影响周围员工
-        this.employees.forEach(emp => {
-          if (emp !== gossip.source) {
-            emp.changeSanity(-2, '听到八卦');
-          }
-        });
-      }
-    };
+    this.gossipSystem = new GossipSystem(this);
     
     // 创建初始员工
     this.createInitialEmployees();
@@ -86,6 +76,9 @@ class MainGame {
     
     // 计算相邻加成
     this.calculateAdjacencyBonus();
+    
+    // 八卦传播系统 tick
+    this.gossipSystem.tick();
     
     // 更新所有员工
     this.employees.forEach(emp => emp.tick());
