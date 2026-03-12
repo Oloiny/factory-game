@@ -27,6 +27,51 @@
             image-rendering: pixelated;
         }
 
+        /* ── 难度选择 ── */
+        #difficulty-screen {
+            position: absolute;
+            inset: 0;
+            background: rgba(10,12,26,0.98);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            gap: 20px;
+        }
+        #difficulty-screen.hidden { display: none; }
+        .diff-title {
+            font-size: 12px;
+            color: #ffd700;
+            text-shadow: 0 0 12px rgba(255,215,0,0.5);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .diff-subtitle {
+            font-size: 7px;
+            color: #718096;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+        .diff-btn {
+            width: 260px;
+            padding: 14px 20px;
+            background: rgba(28,35,55,0.95);
+            border: 2px solid #4a5568;
+            color: #e2e8f0;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.1s, transform 0.1s steps(1);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .diff-btn:hover { border-color: #ffd700; transform: translateX(4px); }
+        .diff-btn .diff-name { font-size: 9px; color: #ffd700; }
+        .diff-btn .diff-desc { font-size: 6px; color: #718096; line-height: 1.8; }
+
         /* ── 加载屏 ── */
         #loading {
             position: absolute;
@@ -555,6 +600,24 @@
 </head>
 <body>
     <div id="game-container">
+        <!-- 难度选择 -->
+        <div id="difficulty-screen">
+            <div class="diff-title">🏢 大厂风云</div>
+            <div class="diff-subtitle">CORPORATE SURVIVAL</div>
+            <button class="diff-btn" onclick="startGame('easy')">
+                <span class="diff-name">😌 简单模式</span>
+                <span class="diff-desc">情绪消耗×0.5 / 进度×1.2 / 45天截止<br>适合第一次体验</span>
+            </button>
+            <button class="diff-btn" onclick="startGame('normal')">
+                <span class="diff-name">😐 正常模式</span>
+                <span class="diff-desc">标准数值 / 30天截止<br>推荐难度</span>
+            </button>
+            <button class="diff-btn" onclick="startGame('hard')">
+                <span class="diff-name">😤 地狱模式</span>
+                <span class="diff-desc">情绪消耗×1.5 / 进度×0.8 / 20天截止<br>你确定吗？</span>
+            </button>
+        </div>
+        
         <div id="loading">
             <div style="font-size:11px; letter-spacing:2px;">LOADING ASSETS...</div>
             <div id="loading-text">0 / 31</div>
@@ -687,7 +750,29 @@
             }
         };
 
-        const game = new Phaser.Game(config);
+        // 游戏实例（难度选择后才初始化）
+        let phaserGame = null;
+        
+        // ========== 难度选择 ==========
+        function startGame(difficulty) {
+            // 隐藏难度选择界面
+            document.getElementById('difficulty-screen').classList.add('hidden');
+            
+            // 应用难度参数到 GameConfig
+            const diff = GameConfig.difficulty[difficulty] || GameConfig.difficulty.normal;
+            // 修改全局配置
+            GameConfig.sanityDrain.working    *= diff.sanityDrain;
+            GameConfig.sanityDrain.overtime   *= diff.sanityDrain;
+            GameConfig.sanityDrain.meeting    *= diff.sanityDrain;
+            GameConfig.progress.base          *= diff.progressGain;
+            GameConfig.deadline                = diff.deadline;
+            
+            // 记录当前难度
+            GameConfig.currentDifficulty = difficulty;
+            
+            // 启动 Phaser
+            phaserGame = new Phaser.Game(config);
+        }
         
         // ========== 游戏状态 ==========
         let mainGame;
@@ -876,7 +961,38 @@
 
                 // 用物理引擎移动（速度 40px/s）
                 gameScene.physics.moveTo(emp.sprite, target.x, target.y, 40);
+                
+                // ── 更新 zone 属性（物理位置 → zone 字符串）──
+                updateEmployeeZone(emp);
             });
+        }
+        
+        // 根据员工当前物理坐标更新 zone 属性
+        function updateEmployeeZone(emp) {
+            if (!emp.sprite || !gameScene || !gameScene.zones) return;
+            const x = emp.sprite.x;
+            const y = emp.sprite.y;
+            const zones = gameScene.zones;
+            
+            let newZone = 'desk'; // 默认工位区
+            
+            if (x >= zones.meeting.x && x <= zones.meeting.x + zones.meeting.width &&
+                y >= zones.meeting.y && y <= zones.meeting.y + zones.meeting.height) {
+                newZone = 'meeting_room';
+            } else if (x >= zones.cafe.x && x <= zones.cafe.x + zones.cafe.width &&
+                       y >= zones.cafe.y && y <= zones.cafe.y + zones.cafe.height) {
+                newZone = 'cafe';
+            } else if (x >= zones.gym.x && x <= zones.gym.x + zones.gym.width &&
+                       y >= zones.gym.y && y <= zones.gym.y + zones.gym.height) {
+                newZone = 'gym';
+            } else if (x >= zones.medical.x && x <= zones.medical.x + zones.medical.width &&
+                       y >= zones.medical.y && y <= zones.medical.y + zones.medical.height) {
+                newZone = 'medical';
+            } else if (y >= 548) {
+                newZone = 'corridor';
+            }
+            
+            emp.zone = newZone;
         }
         
         // ========== 更新员工状态图标 ==========
@@ -1347,6 +1463,34 @@
         function createUI() {
             createSkillBar();
             updateUI();
+            // 注入开局背景故事
+            initBackstoryGossip();
+        }
+        
+        // ===== 开局背景故事（初始八卦）=====
+        function initBackstoryGossip() {
+            if (!mainGame || !mainGame.gossipSystem) return;
+            const backstories = [
+                { content: '听说上个季度KPI考核有人被末位淘汰了...', importance: 6 },
+                { content: '小明和小红上周在会议室吵了一架', importance: 7 },
+                { content: '小刚最近一直在投简历，猎头天天找他', importance: 8 },
+                { content: '老板说这次项目做完要给大家涨薪', importance: 5 },
+            ];
+            backstories.forEach((story, i) => {
+                mainGame.gossipSystem.eventPool.push({
+                    id: `backstory_${i}`,
+                    type: 'backstory',
+                    subject: '公司',
+                    content: story.content,
+                    location: 'unknown',
+                    importance: story.importance,
+                    baseImportance: story.importance,
+                    timestamp: Date.now() - (backstories.length - i) * 3600000,
+                    day: 0,
+                    perceivedBy: [],
+                    spreadCount: 0,
+                });
+            });
         }
         
         // 技能 ID → 像素图标映射
@@ -1604,10 +1748,19 @@
                     </div>
                     <div class="emp-state-row">
                         <span class="emp-state ${stateClass}">${stateIconHtml}${stateName}</span>
+                        <span class="emp-detail-btn" data-empid="${emp.id}" title="查看详情" style="
+                            font-size:6px; color:#4a6080; cursor:pointer; margin-left:4px;
+                            border:1px solid #2d3a55; padding:1px 4px;
+                        ">详情</span>
                     </div>
                 `;
                 
-                card.onclick = () => {
+                card.onclick = (e) => {
+                    // 点击"详情"按钮
+                    if (e.target.classList.contains('emp-detail-btn')) {
+                        showEmployeeDetail(emp);
+                        return;
+                    }
                     if (pendingSkillId) {
                         const skillId = pendingSkillId;
                         exitTargetSelectMode();
@@ -1623,6 +1776,59 @@
                 
                 panel.appendChild(card);
             });
+        }
+        
+        // ===== 员工详情弹窗 =====
+        function showEmployeeDetail(emp) {
+            let modal = document.getElementById('emp-detail-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'emp-detail-modal';
+                modal.style.cssText = `
+                    position:absolute; top:58px; left:240px; z-index:300;
+                    background:rgba(10,14,26,0.98); border:2px solid #3b4f7a;
+                    padding:12px; width:260px; max-height:480px; overflow-y:auto;
+                    font-family:'Press Start 2P',monospace; pointer-events:auto;
+                    scrollbar-width:thin; scrollbar-color:#4a5568 #1a2030;
+                `;
+                document.getElementById('ui-layer').appendChild(modal);
+            }
+            
+            // 最近记忆（取3条）
+            const memories = emp.retrieveMemories({ topN: 3, minImportance: 3 });
+            const memHtml = memories.length > 0
+                ? memories.map(m => `<div style="font-size:5px;color:#94a3b8;border-left:2px solid #4a5568;padding-left:4px;margin:3px 0;line-height:1.6">${m.content}</div>`).join('')
+                : '<div style="font-size:5px;color:#4a5568">暂无记忆</div>';
+            
+            // 关系列表
+            const relEntries = Object.entries(emp.relationships);
+            const relHtml = relEntries.length > 0
+                ? relEntries.map(([id, val]) => {
+                    const target = mainGame.employees.find(e => e.id === id);
+                    const name = target ? target.name : id;
+                    const color = val >= 30 ? '#4ade80' : val <= -30 ? '#f87171' : '#94a3b8';
+                    return `<div style="font-size:5px;color:${color};margin:2px 0">
+                        ${name}: ${val > 0 ? '+' : ''}${Math.round(val)}
+                    </div>`;
+                }).join('')
+                : '<div style="font-size:5px;color:#4a5568">暂无关系数据</div>';
+            
+            modal.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <span style="font-size:7px;color:#ffd700">${emp.name} 的档案</span>
+                    <button onclick="document.getElementById('emp-detail-modal').remove()" style="
+                        background:none;border:1px solid #4a5568;color:#94a3b8;
+                        cursor:pointer;font-size:8px;padding:1px 5px;font-family:inherit
+                    ">✕</button>
+                </div>
+                <div style="font-size:6px;color:#718096;margin-bottom:4px;border-bottom:1px solid #2d3a55;padding-bottom:4px">
+                    📍 当前区域: ${emp.zone || 'desk'} &nbsp;|&nbsp; 🏃 进度: ${emp.progress.toFixed(1)}
+                </div>
+                <div style="font-size:6px;color:#f59e0b;margin:6px 0 3px">🧠 近期记忆</div>
+                ${memHtml}
+                <div style="font-size:6px;color:#f59e0b;margin:6px 0 3px">🤝 人际关系</div>
+                ${relHtml}
+            `;
         }
         
         function updateSkillButtons() {
@@ -1750,22 +1956,41 @@
                 const title = document.getElementById('game-over-title');
                 const desc = document.getElementById('game-over-desc');
                 
+                const status = mainGame.getStatus();
+                const diffNames = { easy: '😌 简单', normal: '😐 正常', hard: '😤 地狱' };
+                const diffName = diffNames[GameConfig.currentDifficulty] || '正常';
+                const activeCount = mainGame.employees.filter(e => e.state !== 'resigning').length;
+                
+                // 计算最终评分
+                let score = Math.round(parseFloat(status.progressPercent));
+                if (result === 'win') score = Math.min(100, score + 20);
+                if (GameConfig.currentDifficulty === 'hard') score = Math.round(score * 1.5);
+                
                 if (result === 'win') {
-                    title.textContent = '🎉 恭喜通关！';
+                    title.textContent = '🎉 项目成功！';
                     title.style.color = '#48bb78';
-                    desc.textContent = `项目提前完成！用了${mainGame.day}天`;
                 } else if (result === 'lose') {
-                    title.textContent = '❌ 游戏失败';
+                    title.textContent = '❌ 项目黄了';
                     title.style.color = '#f56565';
-                    desc.textContent = '项目黄了，下次努力吧...';
                 } else {
                     title.textContent = '😐 勉强完成';
                     title.style.color = '#ecc94b';
-                    desc.textContent = '项目完成了，但是延期了...';
                 }
                 
+                desc.innerHTML = `
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:8px;margin-bottom:16px">
+                        <div>📅 用时：${status.day} / ${status.deadline} 天</div>
+                        <div>📊 完成：${status.progressPercent}%</div>
+                        <div>👥 存活：${activeCount} 人</div>
+                        <div>⚙️ 难度：${diffName}</div>
+                        <div style="grid-column:1/-1;color:#ffd700;font-size:10px;text-align:center;margin-top:8px">
+                            🏆 最终评分：${score} 分
+                        </div>
+                    </div>
+                `;
+                
                 gameOverScreen.classList.add('active');
-                tickTimer.remove();
+                if (tickTimer) tickTimer.remove();
             }
         }
         

@@ -18,7 +18,7 @@ class MainGame {
     
     // 项目进度
     this.projectProgress = 0;
-    this.projectTarget = 1000; // 总目标
+    this.projectTarget = 300; // 总目标（4人×约75点进度）
     
     // Phaser
     this.scene = null;
@@ -80,14 +80,70 @@ class MainGame {
     // 八卦传播系统 tick
     this.gossipSystem.tick();
     
-    // 更新所有员工
-    this.employees.forEach(emp => emp.tick());
+    // 更新所有员工（收集离职/AOE结果）
+    const pendingActions = [];
+    this.employees.forEach(emp => {
+      const result = emp.tick();
+      if (result) pendingActions.push(result);
+    });
+    
+    // 处理 AOE / 离职 结果
+    pendingActions.forEach(action => {
+      if (action.type === 'negative_energy_aoe') {
+        this._handleNegativeEnergyAOE(action);
+      } else if (action.type === 'resignation') {
+        this._handleResignation(action);
+      }
+    });
     
     // 计算项目进度
     this.calculateProjectProgress();
     
     // 检查胜负
     this.checkGameOver();
+  }
+  
+  // 处理暴躁员工的负能量 AOE
+  _handleNegativeEnergyAOE(action) {
+    const source = action.source;
+    if (!source || !source.sprite) return;
+    this.employees.forEach(emp => {
+      if (emp === source || !emp.sprite) return;
+      const dx = emp.sprite.x - source.sprite.x;
+      const dy = emp.sprite.y - source.sprite.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < action.radius) {
+        emp.changeSanity(action.effect.sanity, `被${source.name}的负能量感染`);
+      }
+    });
+  }
+  
+  // 处理员工离职：从列表移除、销毁 sprite
+  _handleResignation(action) {
+    const emp = action.employee;
+    console.log(`❗ [${emp.name}] 正式离职！`);
+    
+    // 销毁 Phaser sprite
+    if (emp.sprite) {
+      emp.sprite.destroy();
+      emp.sprite = null;
+    }
+    if (emp.stateIcon) {
+      emp.stateIcon.destroy();
+      emp.stateIcon = null;
+    }
+    
+    // 从员工列表移除
+    this.employees = this.employees.filter(e => e !== emp);
+    
+    // 传播八卦
+    this.gossipSystem?.publishEvent({
+      type: 'resignation',
+      subject: emp.name,
+      content: `${emp.name}离职了！`,
+      importance: 9,
+      affectedEmployees: [emp.id]
+    });
   }
   
   // ========== 相邻加成系统 ==========

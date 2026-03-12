@@ -261,6 +261,7 @@ class SkillManager {
     
     // 创建新员工（卷王）
     const executive = new Employee({
+      id: `exec_${Date.now()}`,
       name: '卷王',
       role: 'executive',
       sanity: 100,

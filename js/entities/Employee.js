@@ -80,8 +80,8 @@ class Employee {
     if (newState === 'stocking') {
       this.isWorking = false; // 停止工作
     } else if (newState === 'angry') {
-      // 暴躁状态会传染周围
-      this.spreadNegativeEnergy();
+      // 暴躁状态会传染周围（通过 tick 返回值传递给 game.js 处理）
+      this._pendingAOE = this.spreadNegativeEnergy();
     } else if (newState === 'resigning') {
       // 开始改简历，3 天后离职
       this.startResignCountdown();
@@ -193,13 +193,22 @@ class Employee {
     // 3. 更新状态
     this.updateState();
     
-    // 4. 如果是跑路状态，倒计时
+    // 4. 如果有待处理的 AOE（刚进入暴躁状态）
+    if (this._pendingAOE) {
+      const aoe = this._pendingAOE;
+      this._pendingAOE = null;
+      return aoe;
+    }
+    
+    // 5. 如果是跑路状态，倒计时
     if (this.state === 'resigning') {
       this.resignTimer--;
       if (this.resignTimer <= 0) {
-        this.resign();
+        return this.resign(); // 返回离职结果
       }
     }
+    
+    return null;
   }
   
   updateBuffs() {
