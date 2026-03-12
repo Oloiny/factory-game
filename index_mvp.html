@@ -403,11 +403,20 @@
             gfx.clear();
         }
 
+        // ========== 游戏逻辑 ==========
+        let gameScene; // 保存场景引用
+        let furnitureGroup;   // 家具静态碰撞组
+        let charactersGroup;  // 角色物理组
+        
         function create() {
             gameScene = this;
             mainGame = new MainGame();
             mainGame.init(this);
             
+            // 初始化物理组
+            furnitureGroup = this.physics.add.staticGroup();
+            charactersGroup = this.physics.add.group();
+
             createScene(this);
             createUI();
             
@@ -416,6 +425,8 @@
                 if (dragTarget && dragTarget.sprite) {
                     dragTarget.sprite.x = pointer.x - dragOffset.x;
                     dragTarget.sprite.y = pointer.y - dragOffset.y;
+                    // 拖拽时同步物理体位置
+                    dragTarget.sprite.body.reset(dragTarget.sprite.x, dragTarget.sprite.y);
                 }
             });
             
@@ -425,7 +436,7 @@
                         x: dragTarget.sprite.x, 
                         y: dragTarget.sprite.y 
                     };
-                    dragTarget.sprite.setDepth(3);
+                    dragTarget.sprite.setDepth(4);
                     dragTarget = null;
                 }
             });
@@ -436,8 +447,16 @@
                 callbackScope: this,
                 loop: true
             });
+
+            // AI 行走定时器：每 2 秒更新一次目标点
+            this.time.addEvent({
+                delay: 2000,
+                callback: updateAIMovement,
+                callbackScope: this,
+                loop: true
+            });
             
-            console.log('✅ 游戏启动！可拖拽员工调整工位');
+            console.log('✅ 游戏启动！角色支持拖拽 & AI 自动行走，含物理碰撞');
         }
 
         let cursors;
@@ -445,27 +464,84 @@
         let dragOffset = { x: 0, y: 0 };
         
         function update() {
-            // 键盘控制已禁用，改用鼠标拖拽
+            if (!mainGame || !mainGame.employees) return;
+            // 更新所有角色的动画方向（根据速度方向）
+            mainGame.employees.forEach(emp => {
+                if (!emp.sprite || dragTarget === emp) return;
+                const body = emp.sprite.body;
+                if (!body) return;
+                const vx = body.velocity.x;
+                const vy = body.velocity.y;
+                const speed = Math.sqrt(vx*vx + vy*vy);
+                const charKey = `char_${emp.charIndex}`;
+
+                if (speed < 5) {
+                    // 静止：播放 idle（第1帧）
+                    emp.sprite.anims.stop();
+                    emp.sprite.setFrame(0);
+                } else {
+                    // 行走：根据方向选动画
+                    const animKey = `${charKey}_walk_down`;
+                    if (!emp.sprite.anims.isPlaying || emp.sprite.anims.currentAnim?.key !== animKey) {
+                        emp.sprite.play(animKey, true);
+                    }
+                    // 左右翻转
+                    emp.sprite.setFlipX(vx < -5);
+                }
+
+                // 到达目标点后停止
+                if (emp.aiTarget) {
+                    const dx = emp.aiTarget.x - emp.sprite.x;
+                    const dy = emp.aiTarget.y - emp.sprite.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 8) {
+                        emp.sprite.body.setVelocity(0, 0);
+                        emp.aiTarget = null;
+                    }
+                }
+            });
         }
-        
-        // ========== 游戏逻辑 ==========
-        let gameScene; // 保存场景引用
-        
-        function gameTick() {
-            if (mainGame.gameOver) return;
-            
-            mainGame.tick();
-            
-            if (mainGame.eventSystem.day % 1 === 0) {
-                const events = mainGame.eventSystem.checkDailyEvents();
-                events.forEach(event => {
-                    showEventModal(event);
-                });
-            }
-            
-            updateUI();
-            updateAllStateIcons(gameScene);
-            updateZoneEffects(gameScene);
+
+        // ========== AI 行走系统 ==========
+        // 各区域可行走的目标点（避开家具密集区）
+        const WALK_WAYPOINTS = {
+            work:    [ {x:240,y:370}, {x:530,y:370}, {x:240,y:490}, {x:530,y:490},
+                       {x:390,y:390}, {x:300,y:430}, {x:480,y:430} ],
+            meeting: [ {x:100,y:130}, {x:132,y:160}, {x:170,y:130}, {x:200,y:155} ],
+            cafe:    [ {x:600,y:160}, {x:650,y:170}, {x:700,y:155}, {x:668,y:130} ],
+            corridor:[ {x:200,y:565}, {x:400,y:565}, {x:600,y:565} ],
+        };
+
+        function updateAIMovement() {
+            if (!mainGame || !mainGame.employees || !gameScene) return;
+
+            mainGame.employees.forEach(emp => {
+                if (!emp.sprite || dragTarget === emp) return;
+                // 拖拽中不 AI 移动
+                if (emp.isBeingDragged) return;
+
+                // 根据员工状态决定目标区域
+                let pool;
+                if (emp.state === 'stocking') {
+                    // 摸鱼 → 去休闲区
+                    pool = WALK_WAYPOINTS.cafe;
+                } else if (emp.state === 'angry') {
+                    // 暴躁 → 在工作区踱步
+                    pool = WALK_WAYPOINTS.work;
+                } else {
+                    // 正常 → 70% 工作区，20% 走廊，10% 会议室
+                    const r = Math.random();
+                    if (r < 0.7)       pool = WALK_WAYPOINTS.work;
+                    else if (r < 0.9)  pool = WALK_WAYPOINTS.corridor;
+                    else               pool = WALK_WAYPOINTS.meeting;
+                }
+
+                // 随机选一个目标点
+                const target = pool[Math.floor(Math.random() * pool.length)];
+                emp.aiTarget = target;
+
+                // 用物理引擎移动（速度 40px/s）
+                gameScene.physics.moveTo(emp.sprite, target.x, target.y, 40);
+            });
         }
         
         // ========== 更新员工状态图标 ==========
@@ -589,98 +665,106 @@
             // ── 2. 墙壁 & 踢脚线 ──
             const wallGfx = scene.add.graphics().setDepth(1);
             wallGfx.fillStyle(0xb8c4d0);
-            wallGfx.fillRect(0, 0, 800, 40);        // 上墙
-            wallGfx.fillRect(0, 0, 14, 600);         // 左墙
-            wallGfx.fillRect(786, 0, 14, 600);       // 右墙
+            wallGfx.fillRect(0, 0, 800, 40);
+            wallGfx.fillRect(0, 0, 14, 600);
+            wallGfx.fillRect(786, 0, 14, 600);
             wallGfx.fillStyle(0x8fa0b0);
-            wallGfx.fillRect(0, 37, 800, 4);         // 上踢脚线
-            wallGfx.fillRect(0, 594, 800, 6);        // 下踢脚线
-            wallGfx.fillRect(14, 0, 4, 600);         // 左内踢脚线
-            wallGfx.fillRect(782, 0, 4, 600);        // 右内踢脚线
+            wallGfx.fillRect(0, 37, 800, 4);
+            wallGfx.fillRect(0, 594, 800, 6);
+            wallGfx.fillRect(14, 0, 4, 600);
+            wallGfx.fillRect(782, 0, 4, 600);
+
+            // ── 墙壁静态碰撞体（不可见，用于阻挡角色出界）──
+            function addWallBlock(x, y, w, h) {
+                const wall = scene.add.rectangle(x + w/2, y + h/2, w, h, 0x000000, 0);
+                scene.physics.add.existing(wall, true); // true = static
+                furnitureGroup.add(wall);
+            }
+            addWallBlock(0,   0,   800, 42);   // 上墙
+            addWallBlock(0,   558, 800, 42);   // 下墙
+            addWallBlock(0,   0,   16,  600);  // 左墙
+            addWallBlock(784, 0,   16,  600);  // 右墙
 
             // ── 3. 区域隔断线 ──
             const divGfx = scene.add.graphics().setDepth(1);
             divGfx.lineStyle(2, 0x9ab0c0, 0.6);
-            divGfx.lineBetween(250, 40, 250, 230);   // 会议室右边界
-            divGfx.lineBetween(550, 40, 550, 230);   // 休闲区左边界
-            divGfx.lineBetween(14, 230, 786, 230);   // 上下区域横向分隔
+            divGfx.lineBetween(250, 40, 250, 230);
+            divGfx.lineBetween(550, 40, 550, 230);
+            divGfx.lineBetween(14, 230, 786, 230);
 
-            // ── 4. ① 会议室（左上，x:14-250, y:40-230）──
-            // 区域背景色
+            // ── 辅助函数：添加带碰撞的家具 ──
+            function addFurniture(x, y, key, dw, dh, depth, collideW, collideH) {
+                const img = scene.add.image(x, y, key).setDisplaySize(dw, dh).setDepth(depth);
+                // 碰撞体（比显示尺寸略小，避免太卡）
+                const cw = collideW || dw * 0.8;
+                const ch = collideH || dh * 0.6;
+                const body = scene.add.rectangle(x, y, cw, ch, 0xff0000, 0);
+                scene.physics.add.existing(body, true);
+                furnitureGroup.add(body);
+                return img;
+            }
+
+            // ── 4. ① 会议室 ──
             const meetBg = scene.add.graphics().setDepth(1);
             meetBg.fillStyle(0xd0e4f4, 0.25);
             meetBg.fillRect(14, 40, 236, 190);
 
-            // 大会议桌（ID 43: 横向宽桌）居中
-            scene.add.image(132, 130, 'desk_43').setDisplaySize(150, 64).setDepth(2);
-            // 桌子上方椅子 × 3（朝下，depth=2 在桌下）
+            addFurniture(132, 130, 'desk_43',      150, 64, 2, 140, 40);
             scene.add.image(82,  95, 'chair_61').setDisplaySize(36, 40).setDepth(2);
             scene.add.image(132, 95, 'chair_61').setDisplaySize(36, 40).setDepth(2);
             scene.add.image(182, 95, 'chair_61').setDisplaySize(36, 40).setDepth(2);
-            // 桌子下方椅子 × 3（朝上，depth=5 在角色前）
             scene.add.image(82,  168, 'chair_62').setDisplaySize(36, 40).setDepth(5);
             scene.add.image(132, 168, 'chair_62').setDisplaySize(36, 40).setDepth(5);
             scene.add.image(182, 168, 'chair_62').setDisplaySize(36, 40).setDepth(5);
-            // 白板（ID 225）贴北墙
-            scene.add.image(132, 52, 'furniture_225').setDisplaySize(100, 28).setDepth(2);
-            // 植物左上角
+            addFurniture(132, 52, 'furniture_225', 100, 28, 2, 90, 20);
             scene.add.image(22,  52, 'plant_281').setDisplaySize(38, 48).setDepth(2);
             scene.add.image(238, 52, 'plant_282').setDisplaySize(38, 48).setDepth(2);
-            // 区域标签
             scene.add.text(132, 44, '📢 会议室', {
                 font: 'bold 12px Arial', fill: '#1a3a5a',
                 stroke: '#d0e4f4', strokeThickness: 3
             }).setOrigin(0.5, 0).setDepth(3);
 
-            // ── 5. ② 休闲区（右上，x:550-786, y:40-230）──
+            // ── 5. ② 休闲区 ──
             const cafeBg = scene.add.graphics().setDepth(1);
             cafeBg.fillStyle(0xf4e8d0, 0.25);
             cafeBg.fillRect(550, 40, 236, 190);
 
-            // L形沙发：左沙发(ID 201) + 右沙发(ID 202) + 角沙发(ID 203)
-            scene.add.image(600, 155, 'sofa_201').setDisplaySize(72, 60).setDepth(2);
-            scene.add.image(680, 155, 'sofa_202').setDisplaySize(72, 60).setDepth(2);
-            scene.add.image(640, 108, 'sofa_203').setDisplaySize(60, 40).setDepth(2);
-            // 茶几（ID 204）沙发前
-            scene.add.image(640, 148, 'sofa_204').setDisplaySize(50, 36).setDepth(3);
-            // 植物
+            addFurniture(600, 155, 'sofa_201', 72, 60, 2, 64, 30);
+            addFurniture(680, 155, 'sofa_202', 72, 60, 2, 64, 30);
+            addFurniture(640, 108, 'sofa_203', 60, 40, 2, 52, 25);
+            addFurniture(640, 148, 'sofa_204', 50, 36, 3, 42, 20);
             scene.add.image(558, 52, 'plant_283').setDisplaySize(40, 50).setDepth(7);
             scene.add.image(778, 52, 'plant_284').setDisplaySize(40, 50).setDepth(7);
             scene.add.image(558, 200, 'plant_285').setDisplaySize(34, 42).setDepth(7);
-            // 区域标签
             scene.add.text(668, 44, '☕ 休闲区', {
                 font: 'bold 12px Arial', fill: '#5a2a00',
                 stroke: '#f4e8d0', strokeThickness: 3
             }).setOrigin(0.5, 0).setDepth(3);
 
-            // ── 6. ③ 文件柜墙（左侧，x:14-70, y:230-548）──
+            // ── 6. ③ 文件柜墙（左侧）──
             const cabColors = [101, 102, 103, 104, 111, 112];
             for (let i = 0; i < 5; i++) {
-                scene.add.image(42, 270 + i * 60, `cabinet_${cabColors[i % cabColors.length]}`).setDisplaySize(48, 56).setDepth(2);
+                addFurniture(42, 270 + i * 60, `cabinet_${cabColors[i % cabColors.length]}`, 48, 56, 2, 44, 48);
             }
-
-            // ── 7. ③ 文件柜墙（右侧，x:730-786, y:230-548）──
+            // 文件柜墙（右侧）
             for (let i = 0; i < 4; i++) {
-                scene.add.image(758, 280 + i * 65, `cabinet_${113 + (i % 3)}`).setDisplaySize(48, 56).setDepth(2);
+                addFurniture(758, 280 + i * 65, `cabinet_${113 + (i % 3)}`, 48, 56, 2, 44, 48);
             }
 
-            // ── 8. ④ 主工作区（中央，x:80-730, y:240-548）──
-            // 区域背景
+            // ── 7. ④ 主工作区 ──
             const workBg = scene.add.graphics().setDepth(1);
             workBg.fillStyle(0xeef4ee, 0.2);
             workBg.fillRect(70, 240, 660, 308);
 
-            // 工位间隔断屏风（ID 231）
-            scene.add.image(390, 295, 'furniture_231').setDisplaySize(300, 18).setDepth(2);
-            scene.add.image(390, 430, 'furniture_231').setDisplaySize(300, 18).setDepth(2);
-            scene.add.image(390, 362, 'furniture_232').setDisplaySize(18, 120).setDepth(2);
+            addFurniture(390, 295, 'furniture_231', 300, 18, 2, 280, 14);
+            addFurniture(390, 430, 'furniture_231', 300, 18, 2, 280, 14);
+            addFurniture(390, 362, 'furniture_232', 18, 120, 2, 14, 110);
 
-            // 4个工位坐标
             const positions = [
-                { x: 240, y: 330 },  // 工位1 左上
-                { x: 530, y: 330 },  // 工位2 右上
-                { x: 240, y: 470 },  // 工位3 左下
-                { x: 530, y: 470 },  // 工位4 右下
+                { x: 240, y: 330 },
+                { x: 530, y: 330 },
+                { x: 240, y: 470 },
+                { x: 530, y: 470 },
             ];
 
             mainGame.employees.forEach((emp, index) => {
@@ -688,27 +772,37 @@
                 const x = pos.x;
                 const y = pos.y;
 
-                // 桌子（ID 1-4 横向桌，宽90高50）
                 const deskId = (index % 4) + 1;
-                scene.add.image(x, y - 18, `desk_${deskId}`).setDisplaySize(96, 52).setDepth(2);
+                addFurniture(x, y - 18, `desk_${deskId}`, 96, 52, 2, 86, 30);
 
-                // 显示器（ID 141-144，放桌面左侧）
                 const monId = 141 + (index % 4);
                 scene.add.image(x - 18, y - 30, `computer_${monId}`).setDisplaySize(32, 26).setDepth(3);
-
-                // 笔记本（ID 145，放桌面右侧）
                 scene.add.image(x + 22, y - 26, `computer_145`).setDisplaySize(24, 18).setDepth(3);
 
-                // 员工角色
-                const charKey = `char_${index % 6}`;
-                const playerSprite = scene.add.sprite(x, y + 28, charKey, 0);
+                // ── 角色改为物理精灵 ──
+                const charIndex = index % 6;
+                emp.charIndex = charIndex;
+                const charKey = `char_${charIndex}`;
+                const playerSprite = scene.physics.add.sprite(x, y + 28, charKey, 0);
                 playerSprite.setDisplaySize(48, 72);
-                playerSprite.play(`char_${index % 6}_walk_down`);
+                // 物理体设置：矩形碰撞体（脚底部分）
+                playerSprite.body.setSize(20, 20);
+                playerSprite.body.setOffset(
+                    (16 - 20) / 2,   // 水平居中（原始帧宽16）
+                    24 - 20          // 贴脚底（原始帧高24）
+                );
+                playerSprite.body.setCollideWorldBounds(true);
+                playerSprite.play(`char_${charIndex}_walk_down`);
                 playerSprite.setDepth(4);
                 playerSprite.setInteractive({ cursor: 'grab' });
 
+                // 加入角色组（用于统一碰撞注册）
+                charactersGroup.add(playerSprite);
+
                 playerSprite.on('pointerdown', (pointer) => {
                     dragTarget = emp;
+                    emp.isBeingDragged = true;
+                    emp.sprite.body.setVelocity(0, 0);
                     dragOffset.x = pointer.x - playerSprite.x;
                     dragOffset.y = pointer.y - playerSprite.y;
                     playerSprite.setDepth(10);
@@ -716,28 +810,23 @@
                 playerSprite.on('pointerup', () => {
                     if (dragTarget === emp) {
                         dragTarget = null;
+                        emp.isBeingDragged = false;
                         playerSprite.setDepth(4);
                         emp.deskPosition = { x: playerSprite.x, y: playerSprite.y };
-                    }
-                });
-                playerSprite.on('pointermove', (pointer) => {
-                    if (dragTarget === emp) {
-                        playerSprite.x = pointer.x - dragOffset.x;
-                        playerSprite.y = pointer.y - dragOffset.y;
                     }
                 });
 
                 emp.stateIcon = null;
                 updateEmployeeStateIcon(scene, emp);
 
-                // 椅子（角色前面，depth=5）
                 const chairId = 63 + (index % 4);
                 scene.add.image(x, y + 52, `chair_${chairId}`).setDisplaySize(44, 50).setDepth(5);
 
                 emp.sprite = playerSprite;
                 emp.deskPosition = { x, y };
+                emp.aiTarget = null;
+                emp.isBeingDragged = false;
 
-                // 名牌 + 职位
                 scene.add.text(x, y + 60, emp.name, {
                     font: 'bold 11px Arial', fill: '#1a2a3a',
                     stroke: '#ffffff', strokeThickness: 3
@@ -747,27 +836,27 @@
                 }).setOrigin(0.5).setDepth(6);
             });
 
-            // ── 9. ⑤ 底部走廊（y:548-594）──
-            // 接待台（ID 232）居中
-            scene.add.image(400, 568, 'furniture_232').setDisplaySize(120, 44).setDepth(2);
-            // 走廊植物
+            // ── 统一注册碰撞（角色 vs 家具）──
+            scene.physics.add.collider(charactersGroup, furnitureGroup);
+
+            // ── 8. ⑤ 底部走廊 ──
+            addFurniture(400, 568, 'furniture_232', 120, 44, 2, 110, 30);
             scene.add.image(90,  570, 'plant_286').setDisplaySize(36, 44).setDepth(7);
             scene.add.image(710, 570, 'plant_287').setDisplaySize(36, 44).setDepth(7);
             scene.add.image(250, 570, 'plant_288').setDisplaySize(30, 38).setDepth(7);
             scene.add.image(550, 570, 'plant_289').setDisplaySize(30, 38).setDepth(7);
 
-            // ── 10. 外框 ──
+            // ── 9. 外框 ──
             const borderGfx = scene.add.graphics().setDepth(100);
             borderGfx.lineStyle(3, 0x3a4a5a, 1);
             borderGfx.strokeRect(0, 0, 800, 600);
 
-            // 保存区域引用（供区域效果系统使用）
             gameScene.zones = {
                 meeting: { x: 14,  y: 40,  width: 236, height: 190, name: '会议室' },
                 cafe:    { x: 550, y: 40,  width: 236, height: 190, name: '休闲区' }
             };
 
-            console.log('✅ 场景装修完成：会议室 | 休闲区 | 文件柜墙×2 | 4工位 | 走廊');
+            console.log('✅ 场景装修完成：物理碰撞已启用，角色支持 AI 行走');
         }
         
         // ========== UI 系统 ==========
