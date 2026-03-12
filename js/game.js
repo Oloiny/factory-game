@@ -137,16 +137,21 @@ class MainGame {
   }
   
   calculateProjectProgress() {
-    const total = this.employees.reduce((sum, emp) => {
-      return sum + (emp.isWorking && emp.state !== 'stocking' ? emp.progress : 0);
-    }, 0);
-    
-    this.projectProgress = total;
+    // 每 tick 把正在工作的员工产出累加进总进度
+    this.employees.forEach(emp => {
+      if (emp.isWorking && emp.state !== 'stocking' && emp.state !== 'resigning') {
+        this.projectProgress += emp.progress * 0.01; // 每 tick 贡献 1% 的个人进度
+      }
+    });
+    // 限制不超过目标
+    this.projectProgress = Math.min(this.projectProgress, this.projectTarget);
   }
   
   addDays(days) {
     for (let i = 0; i < days; i++) {
-      this.eventSystem.nextDay();
+      this.day++;
+      this.eventSystem.day = this.day;
+      this.skillManager.recoverResources();
     }
   }
   

@@ -174,7 +174,7 @@ class Employee {
       }
     });
     this.debuffs.forEach(debuff => {
-      if (buff.effects) {
+      if (debuff.effects) {
         Object.assign(effects, debuff.effects);
       }
     });

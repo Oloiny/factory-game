@@ -4,199 +4,406 @@
     <meta charset="UTF-8">
     <title>大厂风云 - 职场抓马生存战 MVP</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            background: #1a1a2e; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
+
+        body {
+            background: radial-gradient(ellipse at center, #1a1a3e 0%, #0d0d1a 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
             min-height: 100vh;
-            font-family: Arial, sans-serif;
+            font-family: 'Press Start 2P', 'Courier New', monospace;
         }
-        #game-container { 
-            border: 4px solid #4a5568; 
-            border-radius: 8px; 
+
+        /* 像素风全局字体大小修正（Press Start 2P 较大，统一缩小） */
+        .px-text { font-family: 'Press Start 2P', monospace; }
+
+        #game-container {
+            border: 4px solid #ffd700;
+            box-shadow: 0 0 0 2px #b8860b, 0 0 30px rgba(255,215,0,0.3), inset 0 0 0 2px #b8860b;
             position: relative;
+            image-rendering: pixelated;
         }
+
+        /* ── 加载屏 ── */
         #loading {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             color: #ffd700;
-            font-size: 20px;
-            background: rgba(0,0,0,0.9);
+            font-size: 14px;
+            background: rgba(10,12,26,0.97);
+            border: 3px solid #ffd700;
+            box-shadow: 0 0 0 1px #b8860b, inset 0 0 20px rgba(255,215,0,0.05);
             padding: 40px 60px;
-            border-radius: 10px;
             z-index: 1000;
             text-align: center;
+            image-rendering: pixelated;
         }
+        #loading::before {
+            content: '';
+            display: block;
+            width: 48px; height: 48px;
+            margin: 0 auto 20px;
+            background: url('assets/sprites/ui/skill_pie.png') center/contain no-repeat;
+            image-rendering: pixelated;
+            animation: spin 1s steps(8) infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
         #loading-text {
-            font-size: 14px;
+            font-size: 9px;
             color: #a0aec0;
             margin-top: 15px;
+            letter-spacing: 1px;
         }
-        /* UI 覆盖层 */
+
+        /* ── UI 覆盖层 ── */
         #ui-layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             pointer-events: none;
             z-index: 100;
         }
-        /* 顶部信息栏 */
+
+        /* ── 顶部 HUD ── */
         #top-bar {
-            background: rgba(74, 85, 104, 0.95);
+            background: url('assets/sprites/ui/hud_bg.png') left top / 800px 50px no-repeat;
+            background-color: rgba(14,18,32,0.97);
             color: white;
-            padding: 10px 20px;
+            height: 50px;
+            padding: 0 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             pointer-events: auto;
+            border-bottom: 2px solid #b8860b;
+            image-rendering: pixelated;
         }
-        .stat {
-            margin: 0 10px;
-            font-size: 14px;
+
+        .hud-block {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 10px;
+            border-right: 1px solid rgba(74,85,104,0.6);
         }
-        .stat-label { color: #a0aec0; }
-        .stat-value { font-weight: bold; color: #ffd700; }
-        .danger { color: #f56565 !important; }
-        
+        .hud-block:last-child { border-right: none; }
+
+        .hud-icon {
+            width: 20px; height: 20px;
+            image-rendering: pixelated;
+        }
+        .stat-label {
+            font-size: 7px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            line-height: 1;
+        }
+        .stat-value {
+            font-size: 11px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 8px rgba(255,215,0,0.6);
+            line-height: 1;
+        }
+        .stat-value.danger { color: #f56565 !important; text-shadow: 0 0 8px rgba(245,101,101,0.6); }
+
         /* 进度条 */
         #progress-container {
             flex: 1;
-            margin: 0 20px;
-            background: #2d3748;
-            border-radius: 5px;
-            height: 20px;
+            margin: 0 12px;
+            background: url('assets/sprites/ui/progress_bg.png') center/100% 100% no-repeat;
+            background-color: #0d1220;
+            border: 2px solid #2d3a55;
+            height: 18px;
             overflow: hidden;
+            position: relative;
+            image-rendering: pixelated;
         }
         #progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, #48bb78, #38a169);
+            background: url('assets/sprites/ui/progress_fill.png') left center / 400px 100% no-repeat;
+            background-color: #48bb78;
             width: 0%;
-            transition: width 0.3s;
+            transition: width 0.4s steps(20);
+            image-rendering: pixelated;
         }
-        
-        /* 技能栏 */
+        #progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: rgba(255,255,255,0.25);
+        }
+
+        /* ── 技能栏 ── */
         #skill-bar {
             position: absolute;
-            bottom: 10px;
-            right: 10px;
+            bottom: 8px;
+            right: 8px;
             display: flex;
-            gap: 10px;
+            gap: 8px;
             pointer-events: auto;
         }
+
         .skill-card {
-            background: linear-gradient(135deg, #4a5568, #2d3748);
-            border: 2px solid #718096;
-            border-radius: 8px;
-            padding: 10px;
-            width: 100px;
+            background: url('assets/sprites/ui/skill_card_bg.png') center/100% 100% no-repeat;
+            background-color: rgba(28,35,55,0.95);
+            border: 2px solid #4a5568;
+            width: 96px;
+            height: 88px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: transform 0.1s steps(2), border-color 0.1s;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            image-rendering: pixelated;
+            position: relative;
         }
         .skill-card:hover {
-            transform: translateY(-2px);
+            transform: translateY(-3px);
             border-color: #ffd700;
-            box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
+            box-shadow: 0 4px 0 #b8860b, 0 0 12px rgba(255,215,0,0.4);
         }
-        .skill-card.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .skill-card:active { transform: translateY(0px); box-shadow: none; }
+        .skill-card.pending-target {
+            border-color: #ffd700;
+            box-shadow: 0 0 0 2px #ffd700, 0 0 16px rgba(255,215,0,0.6);
+            animation: pulse-gold 0.6s steps(2) infinite;
         }
-        .skill-icon { font-size: 24px; }
-        .skill-name { font-size: 12px; margin-top: 5px; color: white; }
-        .skill-cost { font-size: 10px; color: #a0aec0; margin-top: 3px; }
-        
-        /* 事件弹窗 */
+        @keyframes pulse-gold {
+            0%  { box-shadow: 0 0 0 2px #ffd700, 0 0 16px rgba(255,215,0,0.6); }
+            50% { box-shadow: 0 0 0 2px #b8860b, 0 0 8px rgba(255,215,0,0.2); }
+        }
+        .skill-card.disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(60%); }
+
+        .skill-icon-img {
+            width: 40px; height: 40px;
+            image-rendering: pixelated;
+        }
+        .skill-name {
+            font-size: 7px;
+            color: #e2e8f0;
+            line-height: 1.3;
+            text-align: center;
+            max-width: 88px;
+        }
+        .skill-cost {
+            font-size: 7px;
+            color: #a0aec0;
+            background: rgba(0,0,0,0.4);
+            padding: 1px 5px;
+            border: 1px solid #4a5568;
+        }
+
+        /* ── 事件弹窗 ── */
         #event-modal {
             display: none;
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            background: url('assets/sprites/ui/modal_bg.png') center/100% 100% no-repeat;
+            background-color: rgba(14,18,32,0.98);
+            border: 3px solid #ffd700;
+            box-shadow: 0 0 0 1px #b8860b, 0 8px 32px rgba(0,0,0,0.8);
+            padding: 0;
+            width: 500px;
             pointer-events: auto;
             z-index: 1000;
+            image-rendering: pixelated;
         }
         #event-modal.active { display: block; }
-        #event-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #2d3748; }
-        #event-desc { font-size: 14px; color: #4a5568; margin-bottom: 20px; white-space: pre-line; }
-        #event-options { display: flex; flex-direction: column; gap: 10px; }
-        .event-option {
-            background: #4a5568;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.2s;
+
+        #event-header {
+            background: rgba(40,50,75,0.95);
+            border-bottom: 2px solid #b8860b;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        .event-option:hover { background: #2d3748; }
-        
-        /* 员工状态面板 */
+        #event-title {
+            font-size: 10px;
+            color: #ffd700;
+            text-shadow: 0 0 8px rgba(255,215,0,0.5);
+            flex: 1;
+        }
+
+        #event-body { padding: 16px; }
+        #event-desc {
+            font-size: 9px;
+            color: #cbd5e0;
+            line-height: 2;
+            margin-bottom: 16px;
+            white-space: pre-line;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #2d3a55;
+            padding: 10px;
+        }
+        #event-options { display: flex; flex-direction: column; gap: 8px; }
+
+        .event-option {
+            background: url('assets/sprites/ui/btn_bg.png') center/100% 100% no-repeat;
+            background-color: rgba(45,55,80,0.95);
+            color: #e2e8f0;
+            border: 2px solid #4a5568;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 8px;
+            font-family: 'Press Start 2P', monospace;
+            line-height: 1.6;
+            text-align: left;
+            transition: border-color 0.1s, transform 0.1s steps(1);
+            image-rendering: pixelated;
+        }
+        .event-option:hover {
+            border-color: #ffd700;
+            color: #ffd700;
+            transform: translateX(4px);
+        }
+        .event-option:active { transform: translateX(2px); }
+
+        /* ── 员工面板 ── */
         #employee-panel {
             position: absolute;
-            top: 70px;
-            left: 10px;
-            background: rgba(45, 55, 72, 0.95);
-            border-radius: 8px;
-            padding: 10px;
-            max-height: 400px;
+            top: 58px;
+            left: 8px;
+            background: rgba(14,18,32,0.92);
+            border: 2px solid #2d3a55;
+            border-top: 3px solid #4a6080;
+            padding: 6px;
+            max-height: 420px;
             overflow-y: auto;
             pointer-events: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #4a5568 #1a2030;
         }
+        #employee-panel::-webkit-scrollbar { width: 6px; }
+        #employee-panel::-webkit-scrollbar-track { background: #1a2030; }
+        #employee-panel::-webkit-scrollbar-thumb { background: #4a5568; }
+
+        /* 面板标题 */
+        #employee-panel::before {
+            content: '👥 员工状态';
+            display: block;
+            font-size: 7px;
+            color: #718096;
+            padding: 2px 4px 6px;
+            border-bottom: 1px solid #2d3a55;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
         .employee-card {
-            background: #2d3748;
-            border-radius: 5px;
-            padding: 8px;
-            margin-bottom: 8px;
-            min-width: 200px;
+            background: rgba(22,28,45,0.95);
+            border: 2px solid #2d3a55;
+            border-left: 4px solid #48bb78;
+            padding: 7px 8px;
+            margin-bottom: 6px;
+            min-width: 210px;
+            cursor: default;
+            transition: border-color 0.15s;
+            display: grid;
+            grid-template-columns: 44px 1fr;
+            gap: 0 8px;
+            align-items: start;
+            image-rendering: pixelated;
         }
-        .emp-name { font-size: 14px; font-weight: bold; color: white; }
-        .emp-role { font-size: 12px; color: #a0aec0; }
-        .emp-bar { 
-            height: 6px; 
-            background: #4a5568; 
-            border-radius: 3px; 
-            margin: 5px 0;
+        .employee-card:hover { border-color: #4a6080; }
+        .employee-card.target-selectable {
+            cursor: pointer;
+            border-color: #ffd700 !important;
+            box-shadow: 0 0 8px rgba(255,215,0,0.3);
+            animation: pulse-card 0.5s steps(2) infinite;
+        }
+        @keyframes pulse-card {
+            0%  { background: rgba(22,28,45,0.95); }
+            50% { background: rgba(40,50,30,0.95); }
+        }
+
+        /* 角色头像 */
+        .emp-avatar {
+            grid-row: 1 / 4;
+            width: 40px; height: 52px;
+            image-rendering: pixelated;
+            border: 2px solid #2d3a55;
+        }
+
+        .emp-info { grid-column: 2; }
+        .emp-name {
+            font-size: 8px;
+            font-weight: bold;
+            color: #e2e8f0;
+            margin-bottom: 2px;
+        }
+        .emp-role {
+            font-size: 7px;
+            color: #718096;
+            margin-bottom: 4px;
+        }
+
+        /* 属性条 */
+        .emp-bars { grid-column: 2; }
+        .bar-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin: 2px 0;
+        }
+        .bar-label {
+            font-size: 6px;
+            color: #718096;
+            width: 10px;
+            text-align: right;
+        }
+        .emp-bar {
+            flex: 1;
+            height: 5px;
+            background: #1a2030;
+            border: 1px solid #2d3a55;
             overflow: hidden;
         }
-        .emp-bar-fill { height: 100%; transition: width 0.3s; }
-        .sanity-fill { background: #48bb78; }
+        .emp-bar-fill { height: 100%; transition: width 0.4s steps(10); }
+        .sanity-fill  { background: #48bb78; }
         .fatigue-fill { background: #f56565; }
         .loyalty-fill { background: #4299e1; }
-        .emp-state { 
-            font-size: 11px; 
-            padding: 2px 6px; 
-            border-radius: 3px; 
-            display: inline-block;
-            margin-top: 3px;
+
+        /* 状态徽章 */
+        .emp-state-row { grid-column: 2; margin-top: 3px; }
+        .emp-state {
+            font-size: 6px;
+            padding: 2px 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            border: 1px solid;
         }
-        .state-normal { background: #48bb78; }
-        .state-stocking { background: #ecc94b; }
-        .state-angry { background: #f56565; }
-        .state-resigning { background: #9f7aea; }
-        
-        /* 游戏结束 */
+        .state-normal   { color: #48bb78; border-color: #48bb78; background: rgba(72,187,120,0.1); }
+        .state-stocking { color: #ecc94b; border-color: #ecc94b; background: rgba(236,201,75,0.1); }
+        .state-angry    { color: #f56565; border-color: #f56565; background: rgba(245,101,101,0.1); }
+        .state-resigning{ color: #9f7aea; border-color: #9f7aea; background: rgba(159,122,234,0.1); }
+
+        /* 状态图标（小） */
+        .state-icon-img {
+            width: 12px; height: 12px;
+            image-rendering: pixelated;
+        }
+
+        /* ── 游戏结束 ── */
         #game-over {
             display: none;
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
             justify-content: center;
             align-items: center;
             flex-direction: column;
@@ -204,55 +411,97 @@
             z-index: 2000;
         }
         #game-over.active { display: flex; }
-        #game-over-title { font-size: 48px; margin-bottom: 20px; }
-        #game-over-desc { font-size: 18px; color: #a0aec0; margin-bottom: 30px; }
-        #restart-btn {
-            background: #48bb78;
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            font-size: 18px;
-            border-radius: 8px;
-            cursor: pointer;
+        #game-over::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(255,215,0,0.03) 0px,
+                rgba(255,215,0,0.03) 1px,
+                transparent 1px,
+                transparent 4px
+            );
+            pointer-events: none;
         }
-        #restart-btn:hover { background: #38a169; }
+        #game-over-title {
+            font-size: 28px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px currentColor;
+        }
+        #game-over-desc {
+            font-size: 10px;
+            color: #a0aec0;
+            margin-bottom: 36px;
+            line-height: 2;
+        }
+        #restart-btn {
+            background: rgba(45,55,80,0.95);
+            color: #ffd700;
+            border: 3px solid #ffd700;
+            padding: 14px 36px;
+            font-size: 11px;
+            font-family: 'Press Start 2P', monospace;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #b8860b;
+            transition: transform 0.1s steps(1), box-shadow 0.1s;
+        }
+        #restart-btn:hover {
+            background: rgba(60,75,100,0.95);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #b8860b;
+        }
+        #restart-btn:active { transform: translateY(2px); box-shadow: none; }
     </style>
 </head>
 <body>
     <div id="game-container">
         <div id="loading">
-            <div>🎨 加载美术素材中...</div>
-            <div id="loading-text">0/31</div>
+            <div style="font-size:11px; letter-spacing:2px;">LOADING ASSETS...</div>
+            <div id="loading-text">0 / 31</div>
         </div>
         
         <!-- UI 层 -->
         <div id="ui-layer">
-            <!-- 顶部信息栏 -->
+            <!-- 顶部 HUD -->
             <div id="top-bar">
-                <div>
-                    <span class="stat-label">📅 第</span>
-                    <span class="stat-value" id="ui-day">1</span>
-                    <span class="stat-label">天</span>
+                <!-- 天数 -->
+                <div class="hud-block">
+                    <div>
+                        <div class="stat-label">DAY</div>
+                        <div class="stat-value" id="ui-day">1</div>
+                    </div>
                 </div>
-                
-                <div id="progress-container">
-                    <div id="progress-bar"></div>
+
+                <!-- 进度条区域 -->
+                <div class="hud-block" style="flex:1; flex-direction:column; align-items:stretch; gap:3px; border-right:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="stat-label">PROJECT PROGRESS</span>
+                        <span class="stat-value" id="ui-progress" style="font-size:9px;">0%</span>
+                    </div>
+                    <div id="progress-container">
+                        <div id="progress-bar"></div>
+                    </div>
                 </div>
-                <div>
-                    <span class="stat-label">📊 进度:</span>
-                    <span class="stat-value" id="ui-progress">0%</span>
+
+                <!-- MP -->
+                <div class="hud-block">
+                    <div>
+                        <div class="stat-label">MP</div>
+                        <div class="stat-value" id="ui-mp">100</div>
+                    </div>
                 </div>
-                
-                <div>
-                    <span class="stat-label">⚡ MP:</span>
-                    <span class="stat-value" id="ui-mp">100</span>
+
+                <!-- 预算 -->
+                <div class="hud-block">
+                    <div>
+                        <div class="stat-label">BUDGET</div>
+                        <div class="stat-value" id="ui-budget">¥500</div>
+                    </div>
                 </div>
-                <div>
-                    <span class="stat-label">💰 预算:</span>
-                    <span class="stat-value" id="ui-budget">¥500</span>
-                </div>
+
             </div>
-            
+
             <!-- 员工状态面板 -->
             <div id="employee-panel"></div>
             
@@ -262,9 +511,13 @@
         
         <!-- 事件弹窗 -->
         <div id="event-modal">
-            <div id="event-title"></div>
-            <div id="event-desc"></div>
-            <div id="event-options"></div>
+            <div id="event-header">
+                <div id="event-title"></div>
+            </div>
+            <div id="event-body">
+                <div id="event-desc"></div>
+                <div id="event-options"></div>
+            </div>
         </div>
         
         <!-- 游戏结束 -->
@@ -329,48 +582,21 @@
                 loading.style.display = 'none';
             });
             
-            // ========== 加载地板贴图 ==========
-            this.load.image('floor_gray',  'assets/sprites/tilesets/floor_gray_tile.png');
-            this.load.image('floor_wood',  'assets/sprites/tilesets/floor_wood_light.png');
-            this.load.image('floor_dark',  'assets/sprites/tilesets/floor_wood_dark.png');
-            this.load.image('floor_white', 'assets/sprites/tilesets/floor_white_tile.png');
-
-            // ========== 加载真实美术素材 ==========
-            // 按设计方案精确加载需要的素材 ID
-            const assetBase = 'assets/sprites/microverse/Modern_Office_Singles_32x32_';
-
-            // 办公桌 (ID 1-10)
-            for (let i = 1; i <= 10; i++) {
-                this.load.image(`desk_${i}`, `${assetBase}${i}.png`);
-            }
-            // 会议桌候选 (ID 41-50: L形/大型桌)
-            for (let i = 41; i <= 50; i++) {
-                this.load.image(`desk_${i}`, `${assetBase}${i}.png`);
-            }
-            // 椅子 (ID 61-75)
-            for (let i = 61; i <= 75; i++) {
-                this.load.image(`chair_${i}`, `${assetBase}${i}.png`);
-            }
-            // 植物 (ID 281-295)
-            for (let i = 281; i <= 295; i++) {
-                this.load.image(`plant_${i}`, `${assetBase}${i}.png`);
-            }
-            // 文件柜 (ID 101-125)
-            for (let i = 101; i <= 125; i++) {
-                this.load.image(`cabinet_${i}`, `${assetBase}${i}.png`);
-            }
-            // 显示器/电脑 (ID 141-165)
-            for (let i = 141; i <= 165; i++) {
-                this.load.image(`computer_${i}`, `${assetBase}${i}.png`);
-            }
-            // 沙发/休闲家具 (ID 181-220)
-            for (let i = 181; i <= 220; i++) {
-                this.load.image(`sofa_${i}`, `${assetBase}${i}.png`);
-            }
-            // 大型家具/接待台/隔断 (ID 221-260)
-            for (let i = 221; i <= 260; i++) {
-                this.load.image(`furniture_${i}`, `${assetBase}${i}.png`);
-            }
+            // ========== 加载 Modern Interiors 真实素材 ==========
+            // Room_Builder: 地板/墙壁 tileset (17x23 tiles, 544x736px)
+            this.load.image('room_builder', 'assets/sprites/tilesets/Room_Builder_free_32x32.png');
+            // Interiors: 家具 tileset (16x89 tiles, 512x2848px)
+            this.load.image('interiors',    'assets/sprites/tilesets/Interiors_free_32x32.png');
+            // 角色精灵表 (Modern Interiors 自带, 16x16 per frame)
+            this.load.spritesheet('mi_adam',   'assets/sprites/tilesets/Adam_run_16x16.png',   { frameWidth: 16, frameHeight: 32 });
+            this.load.spritesheet('mi_alex',   'assets/sprites/tilesets/Alex_run_16x16.png',   { frameWidth: 16, frameHeight: 32 });
+            this.load.spritesheet('mi_amelia', 'assets/sprites/tilesets/Amelia_run_16x16.png', { frameWidth: 16, frameHeight: 32 });
+            this.load.spritesheet('mi_bob',    'assets/sprites/tilesets/Bob_run_16x16.png',    { frameWidth: 16, frameHeight: 32 });
+            
+            // ========== 加载像素风 UI 图标（状态图标）==========
+            this.load.image('icon_stocking',  'assets/sprites/ui/state_stocking.png');
+            this.load.image('icon_angry',     'assets/sprites/ui/state_angry.png');
+            this.load.image('icon_resigning', 'assets/sprites/ui/state_resigning.png');
             
             // 角色 (Pixel Agents 精灵表，112x96，7列x4行，每帧 16x24)
             for (let i = 0; i <= 5; i++) {
@@ -380,27 +606,6 @@
                 });
             }
             
-            // 状态图标（用代码生成）
-            const gfx = this.make.graphics();
-            // 摸鱼图标（鱼 - 蓝色椭圆）
-            gfx.fillStyle(0x4299e1);
-            gfx.fillEllipse(8, 8, 12, 8);
-            gfx.generateTexture('icon_stocking', 16, 16);
-            gfx.clear();
-            // 暴躁图标（火 - 红色三角）
-            gfx.fillStyle(0xf56565);
-            gfx.fillTriangle(8, 2, 4, 14, 12, 14);
-            gfx.generateTexture('icon_angry', 16, 16);
-            gfx.clear();
-            // 跑路图标（行李箱 - 紫色方块）
-            gfx.fillStyle(0x9f7aea);
-            gfx.fillRect(4, 6, 8, 6);
-            gfx.lineStyle(1, 0xffffff);
-            gfx.moveTo(8, 6);
-            gfx.lineTo(8, 12);
-            gfx.strokePath();
-            gfx.generateTexture('icon_resigning', 16, 16);
-            gfx.clear();
         }
 
         // ========== 游戏逻辑 ==========
@@ -506,7 +711,7 @@
         const WALK_WAYPOINTS = {
             work:    [ {x:240,y:370}, {x:530,y:370}, {x:240,y:490}, {x:530,y:490},
                        {x:390,y:390}, {x:300,y:430}, {x:480,y:430} ],
-            meeting: [ {x:100,y:130}, {x:132,y:160}, {x:170,y:130}, {x:200,y:155} ],
+            meeting: [ {x:300,y:130}, {x:375,y:130}, {x:450,y:130}, {x:375,y:160}, {x:300,y:160}, {x:450,y:160} ],
             cafe:    [ {x:600,y:160}, {x:650,y:170}, {x:700,y:155}, {x:668,y:130} ],
             corridor:[ {x:200,y:565}, {x:400,y:565}, {x:600,y:565} ],
         };
@@ -632,139 +837,237 @@
             }
         }
         
+
         // ========== 场景创建（精确设计方案版）==========
         function createScene(scene) {
             const TILE = 32;
 
-            // ── 1. 地板平铺 ──
-            // 底层：浅木色地板铺满全场
-            for (let x = 0; x < 800; x += TILE) {
-                for (let y = 0; y < 600; y += TILE) {
-                    scene.add.image(x + TILE/2, y + TILE/2, 'floor_wood').setDisplaySize(TILE, TILE).setDepth(0);
-                }
-            }
-            // 会议室区域（左上）：白色地砖
-            for (let x = 20; x < 250; x += TILE) {
-                for (let y = 40; y < 230; y += TILE) {
-                    scene.add.image(x + TILE/2, y + TILE/2, 'floor_white').setDisplaySize(TILE, TILE).setDepth(0);
-                }
-            }
-            // 休闲区（右上）：灰色地砖
-            for (let x = 550; x < 790; x += TILE) {
-                for (let y = 40; y < 230; y += TILE) {
-                    scene.add.image(x + TILE/2, y + TILE/2, 'floor_gray').setDisplaySize(TILE, TILE).setDepth(0);
-                }
-            }
-            // 走廊（底部）：灰色地砖
-            for (let x = 0; x < 800; x += TILE) {
-                for (let y = 548; y < 600; y += TILE) {
-                    scene.add.image(x + TILE/2, y + TILE/2, 'floor_gray').setDisplaySize(TILE, TILE).setDepth(0);
-                }
+            // ──────────────────────────────────────────────────────
+            //  布局规划（800×600）
+            //  左列（x:14~210）：上=健身房(y:40~280)，下=医务室(y:280~548)
+            //  中上（x:210~540, y:40~230）：会议室
+            //  右上（x:540~786, y:40~230）：休闲区
+            //  中下大区（x:210~786, y:230~548）：开放工位区
+            //  底部走廊（y:548~600）
+            // ──────────────────────────────────────────────────────
+
+            // ── 辅助：从 tileset 裁剪一块贴图 ──
+            // key: 'interiors' 或 'room_builder'
+            // col,row: 格子坐标（32px/格）；w,h: 格子数
+            function tile(key, col, row, w, h) {
+                // 返回一个临时 RenderTexture，裁出指定区域
+                const T2 = 32;
+                const rt = scene.add.renderTexture(0, 0, w * T2, h * T2);
+                rt.draw(key, -col * T2, -row * T2);
+                rt.setVisible(false);
+                // 实际上用 image + setCrop 更高效
+                rt.destroy();
+                // 直接用 image 加 setCrop 方式
+                return null; // placeholder
             }
 
-            // ── 2. 墙壁 & 踢脚线 ──
-            const wallGfx = scene.add.graphics().setDepth(1);
-            wallGfx.fillStyle(0xb8c4d0);
-            wallGfx.fillRect(0, 0, 800, 40);
-            wallGfx.fillRect(0, 0, 14, 600);
-            wallGfx.fillRect(786, 0, 14, 600);
-            wallGfx.fillStyle(0x8fa0b0);
-            wallGfx.fillRect(0, 37, 800, 4);
-            wallGfx.fillRect(0, 594, 800, 6);
-            wallGfx.fillRect(14, 0, 4, 600);
-            wallGfx.fillRect(782, 0, 4, 600);
-
-            // ── 墙壁静态碰撞体（不可见，用于阻挡角色出界）──
-            function addWallBlock(x, y, w, h) {
-                const wall = scene.add.rectangle(x + w/2, y + h/2, w, h, 0x000000, 0);
-                scene.physics.add.existing(wall, true); // true = static
-                furnitureGroup.add(wall);
+            // ── 辅助：添加从 tileset 裁剪的图像 ──
+            function addTile(key, col, row, tw, th, px, py, dw, dh, depth) {
+                const T2 = 32;
+                const img = scene.add.image(px, py, key)
+                    .setCrop(col * T2, row * T2, tw * T2, th * T2)
+                    .setDisplaySize(dw || tw * T2, dh || th * T2)
+                    .setDepth(depth || 2)
+                    .setOrigin(0.5, 0.5);
+                return img;
             }
-            addWallBlock(0,   0,   800, 42);   // 上墙
-            addWallBlock(0,   558, 800, 42);   // 下墙
-            addWallBlock(0,   0,   16,  600);  // 左墙
-            addWallBlock(784, 0,   16,  600);  // 右墙
 
-            // ── 3. 区域隔断线 ──
-            const divGfx = scene.add.graphics().setDepth(1);
-            divGfx.lineStyle(2, 0x9ab0c0, 0.6);
-            divGfx.lineBetween(250, 40, 250, 230);
-            divGfx.lineBetween(550, 40, 550, 230);
-            divGfx.lineBetween(14, 230, 786, 230);
-
-            // ── 辅助函数：添加带碰撞的家具 ──
-            function addFurniture(x, y, key, dw, dh, depth, collideW, collideH) {
-                const img = scene.add.image(x, y, key).setDisplaySize(dw, dh).setDepth(depth);
-                // 碰撞体（比显示尺寸略小，避免太卡）
-                const cw = collideW || dw * 0.8;
-                const ch = collideH || dh * 0.6;
-                const body = scene.add.rectangle(x, y, cw, ch, 0xff0000, 0);
+            // ── 辅助：添加带碰撞的 tileset 家具 ──
+            function addFurnitureTile(key, col, row, tw, th, px, py, dw, dh, depth) {
+                const img = addTile(key, col, row, tw, th, px, py, dw, dh, depth);
+                const cw = (dw || tw*32) * 0.75;
+                const ch = (dh || th*32) * 0.55;
+                const body = scene.add.rectangle(px, py, cw, ch, 0xff0000, 0);
                 scene.physics.add.existing(body, true);
                 furnitureGroup.add(body);
                 return img;
             }
 
-            // ── 4. ① 会议室 ──
-            const meetBg = scene.add.graphics().setDepth(1);
-            meetBg.fillStyle(0xd0e4f4, 0.25);
-            meetBg.fillRect(14, 40, 236, 190);
+            // ── 辅助：添加带碰撞的家具（兼容旧调用）──
+            function addFurniture(x, y, key, dw, dh, depth, collideW, collideH) {
+                // 此函数现在仅用于纯色矩形占位（不再有虚假 key）
+                const body = scene.add.rectangle(x, y, collideW||dw*0.8, collideH||dh*0.6, 0x000000, 0);
+                scene.physics.add.existing(body, true);
+                furnitureGroup.add(body);
+            }
 
-            addFurniture(132, 130, 'desk_43',      150, 64, 2, 140, 40);
-            scene.add.image(82,  95, 'chair_61').setDisplaySize(36, 40).setDepth(2);
-            scene.add.image(132, 95, 'chair_61').setDisplaySize(36, 40).setDepth(2);
-            scene.add.image(182, 95, 'chair_61').setDisplaySize(36, 40).setDepth(2);
-            scene.add.image(82,  168, 'chair_62').setDisplaySize(36, 40).setDepth(5);
-            scene.add.image(132, 168, 'chair_62').setDisplaySize(36, 40).setDepth(5);
-            scene.add.image(182, 168, 'chair_62').setDisplaySize(36, 40).setDepth(5);
-            addFurniture(132, 52, 'furniture_225', 100, 28, 2, 90, 20);
-            scene.add.image(22,  52, 'plant_281').setDisplaySize(38, 48).setDepth(2);
-            scene.add.image(238, 52, 'plant_282').setDisplaySize(38, 48).setDepth(2);
-            scene.add.text(132, 44, '📢 会议室', {
-                font: 'bold 12px Arial', fill: '#1a3a5a',
+            // ── 1. 地板平铺（Room_Builder tileset）──
+            // Room_Builder 地板坐标（经过实际图像确认）：
+            //   木地板深色: col=0,row=1  木地板浅色: col=1,row=1
+            //   灰色地砖:   col=2,row=1  白色地砖:   col=3,row=1
+            //   棕色地板:   col=0,row=2
+            function tileFloor(col, row, x0, y0, x1, y1) {
+                for (let x = x0; x < x1; x += TILE) {
+                    for (let y = y0; y < y1; y += TILE) {
+                        scene.add.image(x + TILE/2, y + TILE/2, 'room_builder')
+                            .setCrop(col*TILE, row*TILE, TILE, TILE)
+                            .setDisplaySize(TILE, TILE)
+                            .setDepth(0);
+                    }
+                }
+            }
+            // 全场底层：浅木地板 (col=1,row=1)
+            tileFloor(1, 1, 0, 0, 800, 600);
+            // 健身房（深棕木地板 col=0,row=2）
+            tileFloor(0, 2, 14, 40, 210, 280);
+            // 医务室（白色地砖 col=3,row=1）
+            tileFloor(3, 1, 14, 280, 210, 548);
+            // 会议室（灰色地砖 col=2,row=1）
+            tileFloor(2, 1, 210, 40, 540, 230);
+            // 休闲区（棕色地板 col=4,row=1）
+            tileFloor(4, 1, 540, 40, 786, 230);
+            // 走廊（深灰地砖 col=5,row=1）
+            tileFloor(5, 1, 0, 548, 800, 600);
+
+            // ── 2. 墙壁（Room_Builder tileset）──
+            // 上墙: col=0,row=0（顶部墙砖）
+            for (let x = 0; x < 800; x += TILE) {
+                scene.add.image(x + TILE/2, 21, 'room_builder')
+                    .setCrop(0, 0, TILE, TILE).setDisplaySize(TILE, TILE*1.3).setDepth(1);
+            }
+            // 左墙: col=0,row=3
+            for (let y = 42; y < 558; y += TILE) {
+                scene.add.image(8, y + TILE/2, 'room_builder')
+                    .setCrop(0, 3*TILE, TILE/2, TILE).setDisplaySize(TILE/2, TILE).setDepth(1);
+            }
+            // 右墙（翻转）
+            for (let y = 42; y < 558; y += TILE) {
+                scene.add.image(792, y + TILE/2, 'room_builder')
+                    .setCrop(0, 3*TILE, TILE/2, TILE).setDisplaySize(TILE/2, TILE).setDepth(1).setFlipX(true);
+            }
+            // 底墙
+            for (let x = 0; x < 800; x += TILE) {
+                scene.add.image(x + TILE/2, 563, 'room_builder')
+                    .setCrop(0, 0, TILE, TILE).setDisplaySize(TILE, TILE).setDepth(1).setFlipY(true);
+            }
+
+            // ── 墙壁静态碰撞体 ──
+            function addWallBlock(x, y, w, h) {
+                const wall = scene.add.rectangle(x + w/2, y + h/2, w, h, 0x000000, 0);
+                scene.physics.add.existing(wall, true);
+                furnitureGroup.add(wall);
+            }
+            addWallBlock(0,   0,   800, 42);
+            addWallBlock(0,   558, 800, 42);
+            addWallBlock(0,   0,   16,  600);
+            addWallBlock(784, 0,   16,  600);
+
+            // ── 3. 区域隔断线 ──
+            const divGfx = scene.add.graphics().setDepth(1);
+            divGfx.lineStyle(2, 0x9ab0c0, 0.5);
+            divGfx.lineBetween(210, 40,  210, 548);
+            divGfx.lineBetween(14,  280, 210, 280);
+            divGfx.lineBetween(540, 40,  540, 230);
+            divGfx.lineBetween(210, 230, 786, 230);
+
+            // ════════════════════════════════════════════════════
+            // ── 4. ① 健身房（左上，x:14~210, y:40~280）──
+            // ════════════════════════════════════════════════════
+            // 跑步机 → 用 Interiors 行36 col6-7 (2x2, 运动器材)
+            addFurnitureTile('interiors', 6, 36, 2, 2, 65,  78, 64, 64, 2);
+            addFurnitureTile('interiors', 6, 36, 2, 2, 155, 78, 64, 64, 2);
+            // 哑铃架 → Interiors 行44 col1-2 (2x2, 储物柜)
+            addFurnitureTile('interiors', 1, 44, 2, 2, 42,  168, 56, 56, 2);
+            // 瑜伽垫 → Interiors 行42 col0-3 (4x2, 地毯)
+            addFurnitureTile('interiors', 0, 42, 4, 2, 130, 200, 128, 64, 2);
+            // 植物装饰 → Interiors 行44 col9-10 (2x2, 植物)
+            addTile('interiors', 9, 44, 2, 2, 22,  60, 48, 48, 2);
+            addTile('interiors', 9, 44, 2, 2, 196, 60, 48, 48, 2);
+            addTile('interiors', 9, 44, 2, 2, 196, 258, 40, 40, 2);
+            scene.add.text(112, 44, '🏋️ 健身房', {
+                font: 'bold 11px Arial', fill: '#c8a060',
+                stroke: '#1a0a00', strokeThickness: 3
+            }).setOrigin(0.5, 0).setDepth(3);
+
+            // ════════════════════════════════════════════════════
+            // ── 5. ② 医务室（左下，x:14~210, y:280~548）──
+            // ════════════════════════════════════════════════════
+            // 诊疗床 → Interiors 行0 col0-1 (2x2, 床)
+            addFurnitureTile('interiors', 0, 0, 2, 2, 112, 355, 96, 64, 2);
+            // 医疗柜 → Interiors 行5 col0-1 (2x2, 白色书柜)
+            addFurnitureTile('interiors', 0, 5, 2, 2, 42,  310, 56, 64, 2);
+            addFurnitureTile('interiors', 0, 5, 2, 2, 42,  390, 56, 64, 2);
+            // 医生桌+电脑 → Interiors 行36 col1-2 (2x2, 办公桌)
+            addFurnitureTile('interiors', 1, 36, 2, 2, 155, 465, 80, 64, 2);
+            // 植物
+            addTile('interiors', 9, 44, 2, 2, 196, 295, 40, 40, 2);
+            addTile('interiors', 9, 44, 2, 2, 196, 530, 40, 40, 7);
+            scene.add.text(112, 284, '🏥 医务室', {
+                font: 'bold 11px Arial', fill: '#1a6080',
+                stroke: '#e8f4f8', strokeThickness: 3
+            }).setOrigin(0.5, 0).setDepth(3);
+
+            // ════════════════════════════════════════════════════
+            // ── 6. ③ 会议室（中上，x:210~540, y:40~230）──
+            // ════════════════════════════════════════════════════
+            // 会议桌 → Interiors 行36 col4-7 (4x2, 大型办公桌)
+            addFurnitureTile('interiors', 4, 36, 4, 2, 375, 130, 200, 64, 2);
+            // 上排椅子（正面）→ Interiors 行38 col0 (1x2)
+            for (const cx of [280, 320, 375, 430, 470]) {
+                addTile('interiors', 0, 38, 1, 2, cx, 95, 28, 40, 2);
+            }
+            // 下排椅子（背面，翻转）→ Interiors 行38 col0 (1x2)
+            for (const cx of [280, 320, 375, 430, 470]) {
+                scene.add.image(cx, 168, 'interiors')
+                    .setCrop(0, 38*32, 32, 64).setDisplaySize(28, 40).setDepth(5).setFlipY(true);
+            }
+            // 白板 → Interiors 行36 col8-9 (2x2)
+            addTile('interiors', 8, 36, 2, 2, 375, 52, 120, 48, 2);
+            // 植物
+            addTile('interiors', 9, 44, 2, 2, 218, 52, 44, 44, 2);
+            addTile('interiors', 9, 44, 2, 2, 530, 52, 44, 44, 2);
+            scene.add.text(375, 44, '📢 会议室', {
+                font: 'bold 11px Arial', fill: '#1a3a5a',
                 stroke: '#d0e4f4', strokeThickness: 3
             }).setOrigin(0.5, 0).setDepth(3);
 
-            // ── 5. ② 休闲区 ──
-            const cafeBg = scene.add.graphics().setDepth(1);
-            cafeBg.fillStyle(0xf4e8d0, 0.25);
-            cafeBg.fillRect(550, 40, 236, 190);
-
-            addFurniture(600, 155, 'sofa_201', 72, 60, 2, 64, 30);
-            addFurniture(680, 155, 'sofa_202', 72, 60, 2, 64, 30);
-            addFurniture(640, 108, 'sofa_203', 60, 40, 2, 52, 25);
-            addFurniture(640, 148, 'sofa_204', 50, 36, 3, 42, 20);
-            scene.add.image(558, 52, 'plant_283').setDisplaySize(40, 50).setDepth(7);
-            scene.add.image(778, 52, 'plant_284').setDisplaySize(40, 50).setDepth(7);
-            scene.add.image(558, 200, 'plant_285').setDisplaySize(34, 42).setDepth(7);
-            scene.add.text(668, 44, '☕ 休闲区', {
-                font: 'bold 12px Arial', fill: '#5a2a00',
+            // ════════════════════════════════════════════════════
+            // ── 7. ④ 休闲区（右上，x:540~786, y:40~230）──
+            // ════════════════════════════════════════════════════
+            // 灰色沙发左 → Interiors 行72 col1-2 (2x3)
+            addFurnitureTile('interiors', 1, 72, 2, 3, 590, 150, 72, 96, 2);
+            // 灰色沙发右 → Interiors 行72 col3-4 (2x3)
+            addFurnitureTile('interiors', 3, 72, 2, 3, 670, 150, 72, 96, 2);
+            // 茶几 → Interiors 行72 col5-6 (2x2)
+            addFurnitureTile('interiors', 5, 72, 2, 2, 630, 108, 64, 64, 3);
+            // 植物（大）→ Interiors 行44 col11-12 (2x2)
+            addTile('interiors', 11, 44, 2, 2, 548, 52, 48, 48, 7);
+            addTile('interiors', 11, 44, 2, 2, 778, 52, 48, 48, 7);
+            addTile('interiors', 9,  44, 2, 2, 548, 200, 40, 40, 7);
+            scene.add.text(663, 44, '☕ 休闲区', {
+                font: 'bold 11px Arial', fill: '#5a2a00',
                 stroke: '#f4e8d0', strokeThickness: 3
             }).setOrigin(0.5, 0).setDepth(3);
 
-            // ── 6. ③ 文件柜墙（左侧）──
-            const cabColors = [101, 102, 103, 104, 111, 112];
+            // ── 8. ⑤ 文件柜墙（右侧）──
+            // 文件柜 → Interiors 行49 col0-1 (2x2)
             for (let i = 0; i < 5; i++) {
-                addFurniture(42, 270 + i * 60, `cabinet_${cabColors[i % cabColors.length]}`, 48, 56, 2, 44, 48);
-            }
-            // 文件柜墙（右侧）
-            for (let i = 0; i < 4; i++) {
-                addFurniture(758, 280 + i * 65, `cabinet_${113 + (i % 3)}`, 48, 56, 2, 44, 48);
+                addFurnitureTile('interiors', 0, 49, 2, 2, 758, 258 + i * 58, 52, 52, 2);
             }
 
-            // ── 7. ④ 主工作区 ──
-            const workBg = scene.add.graphics().setDepth(1);
-            workBg.fillStyle(0xeef4ee, 0.2);
-            workBg.fillRect(70, 240, 660, 308);
-
-            addFurniture(390, 295, 'furniture_231', 300, 18, 2, 280, 14);
-            addFurniture(390, 430, 'furniture_231', 300, 18, 2, 280, 14);
-            addFurniture(390, 362, 'furniture_232', 18, 120, 2, 14, 110);
+            // ── 9. ⑥ 开放工位区（x:210~750, y:230~548）── 大幅扩展
+            // 工位隔断线（用 Room_Builder 墙砖细线）
+            for (let x = 210; x < 750; x += TILE) {
+                scene.add.image(x + TILE/2, 295, 'room_builder')
+                    .setCrop(0, 0, TILE, 4).setDisplaySize(TILE, 4).setDepth(2).setTint(0x8fa0b0);
+                scene.add.image(x + TILE/2, 430, 'room_builder')
+                    .setCrop(0, 0, TILE, 4).setDisplaySize(TILE, 4).setDepth(2).setTint(0x8fa0b0);
+            }
 
             const positions = [
-                { x: 240, y: 330 },
-                { x: 530, y: 330 },
-                { x: 240, y: 470 },
-                { x: 530, y: 470 },
+                { x: 300, y: 330 },
+                { x: 420, y: 330 },
+                { x: 540, y: 330 },
+                { x: 660, y: 330 },
+                { x: 300, y: 470 },
+                { x: 420, y: 470 },
+                { x: 540, y: 470 },
+                { x: 660, y: 470 },
             ];
 
             mainGame.employees.forEach((emp, index) => {
@@ -772,12 +1075,10 @@
                 const x = pos.x;
                 const y = pos.y;
 
-                const deskId = (index % 4) + 1;
-                addFurniture(x, y - 18, `desk_${deskId}`, 96, 52, 2, 86, 30);
-
-                const monId = 141 + (index % 4);
-                scene.add.image(x - 18, y - 30, `computer_${monId}`).setDisplaySize(32, 26).setDepth(3);
-                scene.add.image(x + 22, y - 26, `computer_145`).setDisplaySize(24, 18).setDepth(3);
+                // 办公桌 → Interiors row36 col1-2 (2x2)
+                addFurnitureTile('interiors', 1, 36, 2, 2, x, y - 18, 96, 52, 2);
+                // 电脑显示器 → Interiors row5 col8 (1x2, 显示器)
+                addTile('interiors', 8, 5, 1, 2, x - 12, y - 34, 28, 36, 3);
 
                 // ── 角色改为物理精灵 ──
                 const charIndex = index % 6;
@@ -819,8 +1120,8 @@
                 emp.stateIcon = null;
                 updateEmployeeStateIcon(scene, emp);
 
-                const chairId = 63 + (index % 4);
-                scene.add.image(x, y + 52, `chair_${chairId}`).setDisplaySize(44, 50).setDepth(5);
+                // 椅子 → Interiors row38 col0 (1x2, 办公椅)
+                addTile('interiors', 0, 38, 1, 2, x, y + 52, 36, 44, 5);
 
                 emp.sprite = playerSprite;
                 emp.deskPosition = { x, y };
@@ -839,12 +1140,12 @@
             // ── 统一注册碰撞（角色 vs 家具）──
             scene.physics.add.collider(charactersGroup, furnitureGroup);
 
-            // ── 8. ⑤ 底部走廊 ──
-            addFurniture(400, 568, 'furniture_232', 120, 44, 2, 110, 30);
-            scene.add.image(90,  570, 'plant_286').setDisplaySize(36, 44).setDepth(7);
-            scene.add.image(710, 570, 'plant_287').setDisplaySize(36, 44).setDepth(7);
-            scene.add.image(250, 570, 'plant_288').setDisplaySize(30, 38).setDepth(7);
-            scene.add.image(550, 570, 'plant_289').setDisplaySize(30, 38).setDepth(7);
+            // ── 10. ⑦ 底部走廊 ──
+            // 走廊植物 → Interiors 行44 col9-10
+            addTile('interiors', 9, 44, 2, 2, 240, 570, 40, 40, 7);
+            addTile('interiors', 9, 44, 2, 2, 740, 570, 40, 40, 7);
+            addTile('interiors', 11, 44, 2, 2, 400, 570, 36, 36, 7);
+            addTile('interiors', 11, 44, 2, 2, 600, 570, 36, 36, 7);
 
             // ── 9. 外框 ──
             const borderGfx = scene.add.graphics().setDepth(100);
@@ -852,31 +1153,98 @@
             borderGfx.strokeRect(0, 0, 800, 600);
 
             gameScene.zones = {
-                meeting: { x: 14,  y: 40,  width: 236, height: 190, name: '会议室' },
-                cafe:    { x: 550, y: 40,  width: 236, height: 190, name: '休闲区' }
+                meeting: { x: 210, y: 40,  width: 330, height: 190, name: '会议室' },
+                cafe:    { x: 540, y: 40,  width: 246, height: 190, name: '休闲区' },
+                gym:     { x: 14,  y: 40,  width: 196, height: 240, name: '健身房' },
+                medical: { x: 14,  y: 280, width: 196, height: 268, name: '医务室' },
             };
 
             console.log('✅ 场景装修完成：物理碰撞已启用，角色支持 AI 行走');
         }
         
         // ========== UI 系统 ==========
+
+        // 目标选择模式
+        let pendingSkillId = null; // 等待选择目标的技能
+
+        function enterTargetSelectMode(skillId) {
+            pendingSkillId = skillId;
+            // 高亮技能卡
+            const card = document.getElementById(`skill-${skillId}`);
+            if (card) card.classList.add('pending-target');
+            // 刷新员工面板（会自动加 target-selectable class）
+            updateEmployeePanel();
+            showToast('👆 请点击左侧员工卡片选择目标', 4000);
+        }
+
+        function exitTargetSelectMode() {
+            if (pendingSkillId) {
+                const card = document.getElementById(`skill-${pendingSkillId}`);
+                if (card) card.classList.remove('pending-target');
+            }
+            pendingSkillId = null;
+            updateEmployeePanel();
+        }
+
+        function showToast(msg, duration = 2500) {
+            let toast = document.getElementById('toast-msg');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast-msg';
+                toast.style.cssText = `
+                    position:absolute; bottom:105px; left:50%; transform:translateX(-50%);
+                    background:rgba(14,18,32,0.97);
+                    color:#ffd700;
+                    border:2px solid #ffd700;
+                    box-shadow:0 0 0 1px #b8860b, 3px 3px 0 #b8860b;
+                    padding:8px 18px;
+                    font-family:'Press Start 2P',monospace;
+                    font-size:8px;
+                    letter-spacing:1px;
+                    z-index:500;
+                    pointer-events:none;
+                    white-space:nowrap;
+                    image-rendering:pixelated;
+                `;
+                document.getElementById('ui-layer').appendChild(toast);
+            }
+            toast.textContent = msg;
+            toast.style.display = 'block';
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => { toast.style.display = 'none'; }, duration);
+        }
+
         function createUI() {
             createSkillBar();
             updateUI();
         }
         
+        // 技能 ID → 像素图标映射
+        const SKILL_ICON_MAP = {
+            'draw_pie':      'assets/sprites/ui/skill_pie.png',
+            'team_dinner':   'assets/sprites/ui/skill_dinner.png',
+            'airdrop_exec':  'assets/sprites/ui/skill_executive.png',
+            'force_leave':   'assets/sprites/ui/skill_vacation.png',
+            'emergency_mtg': 'assets/sprites/ui/skill_meeting.png',
+        };
+
         function createSkillBar() {
             const skillBar = document.getElementById('skill-bar');
             const skills = mainGame.skillManager.skills;
             
             Object.values(skills).forEach(skill => {
+                const iconSrc = SKILL_ICON_MAP[skill.id] || '';
+                const costLabel = skill.costType === 'management' ? '⚡' : '¥';
                 const card = document.createElement('div');
                 card.className = 'skill-card';
                 card.id = `skill-${skill.id}`;
                 card.innerHTML = `
-                    <div class="skill-icon">${skill.icon}</div>
+                    ${iconSrc
+                        ? `<img class="skill-icon-img" src="${iconSrc}" alt="${skill.name}">`
+                        : `<div style="font-size:28px;line-height:1">${skill.icon || '❓'}</div>`
+                    }
                     <div class="skill-name">${skill.name}</div>
-                    <div class="skill-cost">${skill.costType === 'management' ? '⚡' : '💰'}${skill.cost}</div>
+                    <div class="skill-cost">${costLabel}${skill.cost}</div>
                 `;
                 card.onclick = () => useSkill(skill.id);
                 skillBar.appendChild(card);
@@ -897,25 +1265,78 @@
             updateSkillButtons();
         }
         
+        // 状态 → 像素图标映射
+        const STATE_ICON_MAP = {
+            'stocking':  'assets/sprites/ui/state_stocking.png',
+            'angry':     'assets/sprites/ui/state_angry.png',
+            'resigning': 'assets/sprites/ui/state_resigning.png',
+        };
+        // 状态 → 左侧色条颜色
+        const STATE_BORDER_COLOR = {
+            'normal':    '#48bb78',
+            'stocking':  '#ecc94b',
+            'angry':     '#f56565',
+            'resigning': '#9f7aea',
+        };
+
         function updateEmployeePanel() {
             const panel = document.getElementById('employee-panel');
             panel.innerHTML = '';
             
-            mainGame.employees.forEach(emp => {
+            mainGame.employees.forEach((emp, idx) => {
                 const card = document.createElement('div');
                 card.className = 'employee-card';
-                
+                if (pendingSkillId) card.classList.add('target-selectable');
+
+                const stateColor = STATE_BORDER_COLOR[emp.state] || '#48bb78';
+                card.style.borderLeftColor = stateColor;
+
+                const stateName  = emp.getStateName(emp.state);
                 const stateClass = `state-${emp.state}`;
-                const stateName = emp.getStateName(emp.state);
-                
+                const avatarSrc  = `assets/sprites/ui/avatar_${emp.charIndex !== undefined ? emp.charIndex : idx % 6}.png`;
+                const stateIconSrc = STATE_ICON_MAP[emp.state] || '';
+                const stateIconHtml = stateIconSrc
+                    ? `<img class="state-icon-img" src="${stateIconSrc}" alt="${stateName}">`
+                    : '';
+
                 card.innerHTML = `
-                    <div class="emp-name">${emp.name}</div>
-                    <div class="emp-role">${emp.role} | ${stateName}</div>
-                    <div class="emp-bar"><div class="emp-bar-fill sanity-fill" style="width:${emp.sanity}%"></div></div>
-                    <div class="emp-bar"><div class="emp-bar-fill fatigue-fill" style="width:${emp.fatigue}%"></div></div>
-                    <div class="emp-bar"><div class="emp-bar-fill loyalty-fill" style="width:${emp.loyalty}%"></div></div>
-                    <div class="emp-state ${stateClass}">${stateName}</div>
+                    <img class="emp-avatar" src="${avatarSrc}" alt="${emp.name}">
+                    <div class="emp-info">
+                        <div class="emp-name">${emp.name}</div>
+                        <div class="emp-role">${emp.role}</div>
+                    </div>
+                    <div class="emp-bars">
+                        <div class="bar-row">
+                            <span class="bar-label" title="情绪">😊</span>
+                            <div class="emp-bar"><div class="emp-bar-fill sanity-fill" style="width:${emp.sanity}%"></div></div>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label" title="疲劳">💤</span>
+                            <div class="emp-bar"><div class="emp-bar-fill fatigue-fill" style="width:${emp.fatigue}%"></div></div>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label" title="忠诚">❤️</span>
+                            <div class="emp-bar"><div class="emp-bar-fill loyalty-fill" style="width:${emp.loyalty}%"></div></div>
+                        </div>
+                    </div>
+                    <div class="emp-state-row">
+                        <span class="emp-state ${stateClass}">${stateIconHtml}${stateName}</span>
+                    </div>
                 `;
+                
+                card.onclick = () => {
+                    if (pendingSkillId) {
+                        const skillId = pendingSkillId;
+                        exitTargetSelectMode();
+                        const result = mainGame.skillManager.useSkill(skillId, emp);
+                        if (result.success) {
+                            showToast(`✅ ${mainGame.skillManager.skills[skillId].name} → ${emp.name}`);
+                            updateUI();
+                        } else {
+                            showToast(`❌ ${result.reason}`);
+                        }
+                    }
+                };
                 
                 panel.appendChild(card);
             });
@@ -930,11 +1351,36 @@
         }
         
         function useSkill(skillId) {
+            const skill = mainGame.skillManager.skills[skillId];
+            if (!skill) return;
+
+            // 如果正在选目标，按 Esc 逻辑取消
+            if (pendingSkillId === skillId) {
+                exitTargetSelectMode();
+                showToast('❎ 已取消');
+                return;
+            }
+
+            // 检查资源是否足够（不检查 target）
+            const check = mainGame.skillManager.canUseSkill(skillId, skill.target === 'single' ? {} : null);
+            if (!check.can && check.reason !== '需要选择目标') {
+                showToast(`❌ ${check.reason}`);
+                return;
+            }
+
+            // 单体技能：进入目标选择模式
+            if (skill.target === 'single') {
+                enterTargetSelectMode(skillId);
+                return;
+            }
+
+            // AOE / summon 技能：直接执行
             const result = mainGame.skillManager.useSkill(skillId);
             if (result.success) {
+                showToast(`✅ ${skill.name} 已使用！`);
                 updateUI();
             } else {
-                alert(result.reason);
+                showToast(`❌ ${result.reason}`);
             }
         }
         
@@ -973,6 +1419,45 @@
             modal.classList.add('active');
         }
         
+        // ========== 游戏主循环 Tick ==========
+        let minuteCounter = 0; // 每60次tick = 1天
+
+        function gameTick() {
+            if (!mainGame || mainGame.gameOver) return;
+
+            minuteCounter++;
+
+            // 每 60 秒 = 1 游戏天
+            if (minuteCounter >= 60) {
+                minuteCounter = 0;
+                mainGame.day++;
+                mainGame.eventSystem.nextDay();
+
+                // 触发并显示事件
+                const events = mainGame.eventSystem.checkDailyEvents();
+                if (events.length > 0) {
+                    showEventModal(events[0]);
+                }
+
+                console.log(`📅 第${mainGame.day}天`);
+            }
+
+            // 每 tick 执行游戏逻辑
+            mainGame.tick();
+
+            // 更新区域效果
+            updateZoneEffects(gameScene);
+
+            // 更新状态图标
+            updateAllStateIcons(gameScene);
+
+            // 更新 UI
+            updateUI();
+
+            // 检查胜负
+            checkGameOver();
+        }
+
         // ========== 游戏结束 ==========
         function checkGameOver() {
             const result = mainGame.checkGameOver();
