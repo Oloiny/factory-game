@@ -1,78 +1,510 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>长安文豪会 - BehavioLab</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background: #1a1a2e;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: 'STKaiti', 'KaiTi', serif;
-            padding: 20px;
-        }
-        #game-container {
-            position: relative;
-            border: 4px solid #8b4513;
-            border-radius: 8px;
-            box-shadow: 0 0 30px rgba(139, 69, 19, 0.7);
-        }
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #ffffff;
-            font-size: 24px;
-            text-align: center;
-            z-index: 1000;
-        }
-        .loading-bar {
-            width: 300px;
-            height: 20px;
-            background: #333;
-            border-radius: 10px;
-            margin: 20px auto;
-            overflow: hidden;
-        }
-        .loading-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ffd700, #ffed4e);
-            width: 0%;
-            transition: width 0.3s;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>大厂风云 - 职场抓马生存战</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d1117;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+    #game-container {
+      position: relative;
+      border: 2px solid #30363d;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(74,144,217,0.15);
+    }
+    #game-container canvas {
+      display: block;
+    }
+  </style>
 </head>
 <body>
-    <div id="game-container">
-        <div id="loading">
-            <div>🏮 加载长安文豪会 🏮</div>
-            <div class="loading-bar">
-                <div class="loading-fill" id="loading-fill"></div>
-            </div>
-            <div id="loading-text">0%</div>
-        </div>
-    </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
-    <script>
-        // 加载进度显示
-        const loadingFill = document.getElementById('loading-fill');
-        const loadingText = document.getElementById('loading-text');
-        
-        // 隐藏加载界面
-        setTimeout(() => {
-            document.getElementById('loading').style.display = 'none';
-        }, 5000);
-    </script>
-    <script src="js/game.js"></script>
+<div id="game-container"></div>
+
+<!-- Phaser -->
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+
+<!-- 游戏逻辑 -->
+<script src="js/config/balance.js"></script>
+<script src="js/entities/Employee.js"></script>
+<script src="js/systems/GossipSystem.js"></script>
+<script src="js/systems/EventSystem.js"></script>
+<script src="js/systems/SkillManager.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui/UIManager.js"></script>
+
+<script>
+// ============================================================
+// 全局状态
+// ============================================================
+let mainGame = null;
+let uiManager = null;
+let gameStarted = false;
+let tickTimer = null;
+let dayTimer = null;
+
+// ============================================================
+// Phaser 配置
+// ============================================================
+const phaserConfig = {
+  type: Phaser.AUTO,
+  width: 900,
+  height: 640,
+  parent: 'game-container',
+  backgroundColor: '#1a202c',
+  physics: {
+    default: 'arcade',
+    arcade: { debug: false }
+  },
+  scene: {
+    preload: preload,
+    create: create,
+    update: update
+  }
+};
+
+const phaserGame = new Phaser.Game(phaserConfig);
+
+// ============================================================
+// Phaser: preload
+// ============================================================
+function preload() {
+  // 用代码生成素材（不依赖外部文件）
+  const gfx = this.make.graphics({ x: 0, y: 0, add: false });
+
+  // 地板
+  gfx.fillStyle(0xe8edf2); gfx.fillRect(0, 0, 32, 32);
+  gfx.lineStyle(0.5, 0xd0d7de); gfx.strokeRect(0, 0, 32, 32);
+  gfx.generateTexture('floor', 32, 32); gfx.clear();
+
+  // 工位桌
+  gfx.fillStyle(0x8b7355); gfx.fillRect(2, 8, 28, 20);
+  gfx.fillStyle(0x4a90d9); gfx.fillRect(6, 10, 14, 10); // 屏幕
+  gfx.fillStyle(0x2d3748); gfx.fillRect(8, 20, 10, 3);  // 键盘
+  gfx.generateTexture('desk', 32, 32); gfx.clear();
+
+  // 会议桌（大）
+  gfx.fillStyle(0x6b4c2a); gfx.fillRect(0, 0, 96, 48);
+  gfx.lineStyle(2, 0x8b6340); gfx.strokeRect(0, 0, 96, 48);
+  gfx.generateTexture('meeting_table', 96, 48); gfx.clear();
+
+  // 沙发
+  gfx.fillStyle(0x4a5568); gfx.fillRect(0, 8, 64, 24);
+  gfx.fillStyle(0x2d3748); gfx.fillRect(0, 4, 64, 8);
+  gfx.generateTexture('sofa', 64, 32); gfx.clear();
+
+  // 植物
+  gfx.fillStyle(0x48bb78); gfx.fillCircle(16, 14, 12);
+  gfx.fillStyle(0x276749); gfx.fillRect(13, 22, 6, 8);
+  gfx.fillStyle(0x8b6340); gfx.fillRect(10, 28, 12, 4);
+  gfx.generateTexture('plant', 32, 32); gfx.clear();
+
+  // 咖啡机
+  gfx.fillStyle(0x2d3748); gfx.fillRect(6, 4, 20, 26);
+  gfx.fillStyle(0xe53e3e); gfx.fillCircle(16, 12, 5);
+  gfx.fillStyle(0x4a5568); gfx.fillRect(8, 22, 16, 6);
+  gfx.generateTexture('coffee', 32, 32); gfx.clear();
+
+  // 角色（程序员）
+  gfx.fillStyle(0x4299e1); gfx.fillRect(8, 14, 16, 18); // 身体
+  gfx.fillStyle(0xfbd38d); gfx.fillRect(10, 4, 12, 12);  // 头
+  gfx.fillStyle(0x2d3748); gfx.fillRect(10, 4, 12, 5);   // 头发
+  gfx.generateTexture('char_programmer', 32, 32); gfx.clear();
+
+  // 角色（PM）
+  gfx.fillStyle(0xffffff); gfx.fillRect(8, 14, 16, 18);
+  gfx.fillStyle(0xfbd38d); gfx.fillRect(10, 4, 12, 12);
+  gfx.fillStyle(0x744210); gfx.fillRect(10, 4, 12, 5);
+  gfx.generateTexture('char_pm', 32, 32); gfx.clear();
+
+  // 角色（设计师）
+  gfx.fillStyle(0xed64a6); gfx.fillRect(8, 14, 16, 18);
+  gfx.fillStyle(0xfbd38d); gfx.fillRect(10, 4, 12, 12);
+  gfx.fillStyle(0x9f7aea); gfx.fillRect(10, 4, 12, 5);
+  gfx.generateTexture('char_designer', 32, 32); gfx.clear();
+
+  // 角色（高管）
+  gfx.fillStyle(0x1a202c); gfx.fillRect(8, 14, 16, 18);
+  gfx.fillStyle(0xfbd38d); gfx.fillRect(10, 4, 12, 12);
+  gfx.fillStyle(0x718096); gfx.fillRect(10, 4, 12, 5);
+  gfx.fillStyle(0xffffff); gfx.fillRect(14, 18, 4, 10); // 领带
+  gfx.generateTexture('char_executive', 32, 32); gfx.clear();
+
+  // 状态图标
+  gfx.fillStyle(0xecc94b); gfx.fillCircle(8, 8, 8);
+  gfx.generateTexture('icon_stocking', 16, 16); gfx.clear();
+
+  gfx.fillStyle(0xe53e3e); gfx.fillCircle(8, 8, 8);
+  gfx.generateTexture('icon_angry', 16, 16); gfx.clear();
+
+  gfx.fillStyle(0x9f7aea); gfx.fillCircle(8, 8, 8);
+  gfx.generateTexture('icon_resigning', 16, 16); gfx.clear();
+
+  gfx.destroy();
+}
+
+// ============================================================
+// Phaser: create
+// ============================================================
+function create() {
+  const scene = this;
+
+  // 初始化 UIManager（此时 game 还未创建，先传 null）
+  uiManager = new UIManager(null, scene);
+
+  // 显示难度选择界面
+  uiManager.showDifficultySelect((difficulty) => {
+    startGame(scene, difficulty);
+  });
+}
+
+// ============================================================
+// 游戏启动
+// ============================================================
+function startGame(scene, difficulty) {
+  // 创建主游戏
+  mainGame = new MainGame({ difficulty });
+  mainGame.init(scene);
+
+  // 将 game 绑定到 UIManager
+  uiManager.game = mainGame;
+
+  // 绘制场景
+  drawOfficeScene(scene);
+
+  // 创建员工 sprite
+  createEmployeeSprites(scene);
+
+  // 初始化所有 UI 组件
+  uiManager.initAll();
+
+  // 设置相机边界
+  scene.cameras.main.setBounds(0, 0, 1200, 900);
+  scene.physics.world.setBounds(0, 0, 1200, 900);
+
+  // 定义 zones（默认值，搭完 Tiled 场景后会被 loadZonesFromTiled 覆盖）
+  scene.gameZones = {
+    meeting_room: { x: 50,  y: 50,  width: 200, height: 150 },
+    cafe:         { x: 700, y: 50,  width: 180, height: 150 },
+    gym:          { x: 50,  y: 650, width: 180, height: 180 },
+    medical:      { x: 700, y: 650, width: 160, height: 180 },
+    smoking_area: { x: 350, y: 800, width: 200, height: 80  },
+    desk:         { x: 200, y: 200, width: 700, height: 400 }
+  };
+
+  // 启动游戏主循环
+  gameStarted = true;
+  startGameLoop(scene);
+
+  console.log('🎮 游戏启动！难度：', difficulty);
+}
+
+// ============================================================
+// 游戏主循环
+// ============================================================
+function startGameLoop(scene) {
+  // 每秒 tick 一次（1秒 = 1分钟游戏时间）
+  tickTimer = scene.time.addEvent({
+    delay: GameConfig.tickRate,
+    loop: true,
+    callback: () => {
+      if (!mainGame || mainGame.gameOver) return;
+
+      // 游戏逻辑 tick
+      mainGame.tick();
+
+      // 每 60 tick = 1 天
+      mainGame._minuteCounter = (mainGame._minuteCounter || 0) + 1;
+      if (mainGame._minuteCounter >= 60) {
+        mainGame._minuteCounter = 0;
+        onNewDay(scene);
+      }
+
+      // 更新 UI
+      const events = mainGame._pendingUIEvents || [];
+      mainGame._pendingUIEvents = [];
+      uiManager.tickUpdate(events);
+
+      // 检查胜负
+      if (mainGame.gameOver) {
+        tickTimer.remove();
+      }
+    }
+  });
+}
+
+function onNewDay(scene) {
+  mainGame.day++;
+  mainGame.eventSystem.day = mainGame.day;
+  mainGame.skillManager.recoverResources();
+
+  // 触发每日事件
+  const events = mainGame.eventSystem.checkDailyEvents();
+  if (events.length > 0) {
+    // 暂存事件，由 tickUpdate 统一推送给 UIManager
+    mainGame._pendingUIEvents = (mainGame._pendingUIEvents || []).concat(events);
+  }
+
+  // 更新 HUD 天数
+  uiManager.updateHUD();
+
+  console.log(`📅 第 ${mainGame.day} 天`);
+}
+
+// ============================================================
+// 绘制办公室场景
+// ============================================================
+function drawOfficeScene(scene) {
+  const gfx = scene.add.graphics();
+
+  // 地板
+  for (let x = 0; x < 1200; x += 32) {
+    for (let y = 0; y < 900; y += 32) {
+      scene.add.image(x + 16, y + 16, 'floor').setDepth(0);
+    }
+  }
+
+  // 外墙
+  gfx.lineStyle(4, 0x4a5568);
+  gfx.strokeRect(0, 0, 1200, 900);
+
+  // ===== 会议室区域（左上）=====
+  gfx.fillStyle(0xd4e8f5, 0.3);
+  gfx.fillRect(50, 50, 200, 150);
+  gfx.lineStyle(2, 0x4a90d9, 0.6);
+  gfx.strokeRect(50, 50, 200, 150);
+  scene.add.text(150, 60, '会议室', { fontSize: '12px', color: '#4a90d9', fontStyle: 'bold' }).setOrigin(0.5).setDepth(1);
+  scene.add.image(150, 120, 'meeting_table').setDepth(1);
+
+  // ===== 休闲区（右上）=====
+  gfx.fillStyle(0xf0e6d3, 0.3);
+  gfx.fillRect(700, 50, 180, 150);
+  gfx.lineStyle(2, 0xf6ad55, 0.6);
+  gfx.strokeRect(700, 50, 180, 150);
+  scene.add.text(790, 60, '茶水间', { fontSize: '12px', color: '#f6ad55', fontStyle: 'bold' }).setOrigin(0.5).setDepth(1);
+  scene.add.image(750, 120, 'coffee').setDepth(1);
+  scene.add.image(820, 120, 'sofa').setDepth(1);
+
+  // ===== 健身房（左下）=====
+  gfx.fillStyle(0xd4f5e8, 0.3);
+  gfx.fillRect(50, 650, 180, 180);
+  gfx.lineStyle(2, 0x48bb78, 0.6);
+  gfx.strokeRect(50, 650, 180, 180);
+  scene.add.text(140, 660, '健身房', { fontSize: '12px', color: '#48bb78', fontStyle: 'bold' }).setOrigin(0.5).setDepth(1);
+
+  // ===== 医务室（右下）=====
+  gfx.fillStyle(0xf5d4d4, 0.3);
+  gfx.fillRect(700, 650, 160, 180);
+  gfx.lineStyle(2, 0xe53e3e, 0.6);
+  gfx.strokeRect(700, 650, 160, 180);
+  scene.add.text(780, 660, '医务室', { fontSize: '12px', color: '#e53e3e', fontStyle: 'bold' }).setOrigin(0.5).setDepth(1);
+
+  // ===== 吸烟区（底部中间）=====
+  gfx.fillStyle(0xf5f0d4, 0.3);
+  gfx.fillRect(350, 800, 200, 80);
+  gfx.lineStyle(2, 0xecc94b, 0.6);
+  gfx.strokeRect(350, 800, 200, 80);
+  scene.add.text(450, 810, '🚬 吸烟区', { fontSize: '12px', color: '#ecc94b' }).setOrigin(0.5).setDepth(1);
+
+  // ===== 工位区（中间）=====
+  const deskPositions = [
+    { x: 250, y: 280 }, { x: 350, y: 280 }, { x: 450, y: 280 }, { x: 550, y: 280 },
+    { x: 250, y: 380 }, { x: 350, y: 380 }, { x: 450, y: 380 }, { x: 550, y: 380 },
+    { x: 250, y: 480 }, { x: 350, y: 480 }, { x: 450, y: 480 }, { x: 550, y: 480 },
+  ];
+  deskPositions.forEach(pos => {
+    scene.add.image(pos.x, pos.y, 'desk').setDepth(1);
+  });
+
+  // 植物装饰
+  [[80, 800], [1120, 800], [80, 100], [1120, 100]].forEach(([x, y]) => {
+    scene.add.image(x, y, 'plant').setDepth(1);
+  });
+
+  gfx.destroy();
+}
+
+// ============================================================
+// 创建员工 Sprite
+// ============================================================
+function createEmployeeSprites(scene) {
+  const roleTextures = {
+    programmer: 'char_programmer',
+    pm: 'char_pm',
+    designer: 'char_designer',
+    executive: 'char_executive'
+  };
+
+  const startPositions = [
+    { x: 250, y: 280 },
+    { x: 350, y: 280 },
+    { x: 450, y: 280 },
+    { x: 550, y: 280 }
+  ];
+
+  mainGame.employees.forEach((emp, i) => {
+    const pos = startPositions[i] || { x: 400 + i * 60, y: 400 };
+    const texture = roleTextures[emp.role] || 'char_programmer';
+
+    // 创建 sprite
+    const sprite = scene.physics.add.sprite(pos.x, pos.y, texture);
+    sprite.setDepth(5);
+    sprite.setCollideWorldBounds(true);
+    sprite.setInteractive();
+
+    // 点击 sprite 也能查看详情
+    sprite.on('pointerdown', () => {
+      if (uiManager.skillTargetMode) {
+        uiManager.skillTargetMode.onSelect(emp);
+        uiManager._clearTargetMode();
+      } else {
+        uiManager.showEmployeeDetail(emp);
+      }
+    });
+    sprite.on('pointerover', () => {
+      sprite.setTint(0xaaddff);
+      // 显示名字气泡
+      if (!sprite._nameTag) {
+        sprite._nameTag = scene.add.text(pos.x, pos.y - 20, emp.name, {
+          fontSize: '11px', color: '#ffffff',
+          backgroundColor: '#00000099', padding: { x: 4, y: 2 }
+        }).setOrigin(0.5).setDepth(20);
+      }
+    });
+    sprite.on('pointerout', () => {
+      sprite.clearTint();
+      if (sprite._nameTag) { sprite._nameTag.destroy(); sprite._nameTag = null; }
+    });
+
+    emp.sprite = sprite;
+    emp.deskPosition = pos;
+
+    // 状态图标
+    const iconTextures = { stocking: 'icon_stocking', angry: 'icon_angry', resigning: 'icon_resigning' };
+    const stateIcon = scene.add.image(pos.x + 12, pos.y - 16, 'icon_stocking').setDepth(6).setVisible(false);
+    emp.stateIcon = stateIcon;
+  });
+}
+
+// ============================================================
+// Phaser: update（每帧）
+// ============================================================
+function update(time, delta) {
+  if (!gameStarted || !mainGame) return;
+
+  // 更新员工 AI 移动
+  updateAIMovement();
+
+  // 更新状态图标位置和可见性
+  updateStateIcons();
+
+  // 更新 zone 映射
+  uiManager.frameUpdate();
+}
+
+// ============================================================
+// AI 移动
+// ============================================================
+let aiMoveTimer = 0;
+function updateAIMovement() {
+  aiMoveTimer += 16; // 约 16ms/帧
+  if (aiMoveTimer < 2000) return; // 每2秒随机移动一次
+  aiMoveTimer = 0;
+
+  mainGame.employees.forEach(emp => {
+    if (!emp.sprite) return;
+
+    // 跑路状态：往边缘跑
+    if (emp.state === 'resigning') {
+      emp.sprite.setVelocity(
+        Phaser.Math.Between(-30, 30),
+        Phaser.Math.Between(50, 100)
+      );
+      return;
+    }
+
+    // 摸鱼状态：往休闲区游荡
+    if (emp.state === 'stocking') {
+      const target = { x: Phaser.Math.Between(700, 880), y: Phaser.Math.Between(60, 180) };
+      const dx = target.x - emp.sprite.x;
+      const dy = target.y - emp.sprite.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 20) {
+        emp.sprite.setVelocity((dx / dist) * 40, (dy / dist) * 40);
+      } else {
+        emp.sprite.setVelocity(0, 0);
+      }
+      return;
+    }
+
+    // 暴躁状态：在工位附近乱跑
+    if (emp.state === 'angry') {
+      emp.sprite.setVelocity(
+        Phaser.Math.Between(-60, 60),
+        Phaser.Math.Between(-60, 60)
+      );
+      return;
+    }
+
+    // 正常状态：偶尔走动，大部分时间在工位
+    const rand = Math.random();
+    if (rand < 0.6 && emp.deskPosition) {
+      // 回工位
+      const dx = emp.deskPosition.x - emp.sprite.x;
+      const dy = emp.deskPosition.y - emp.sprite.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 10) {
+        emp.sprite.setVelocity((dx / dist) * 30, (dy / dist) * 30);
+      } else {
+        emp.sprite.setVelocity(0, 0);
+      }
+    } else if (rand < 0.8) {
+      // 随机小范围游走
+      emp.sprite.setVelocity(
+        Phaser.Math.Between(-25, 25),
+        Phaser.Math.Between(-25, 25)
+      );
+    } else {
+      // 停下来
+      emp.sprite.setVelocity(0, 0);
+    }
+  });
+}
+
+// ============================================================
+// 状态图标更新
+// ============================================================
+function updateStateIcons() {
+  mainGame?.employees.forEach(emp => {
+    if (!emp.sprite || !emp.stateIcon) return;
+
+    // 跟随 sprite
+    emp.stateIcon.setPosition(emp.sprite.x + 12, emp.sprite.y - 16);
+
+    // 根据状态显示不同图标
+    if (emp.state === 'stocking') {
+      emp.stateIcon.setTexture('icon_stocking').setVisible(true);
+    } else if (emp.state === 'angry') {
+      emp.stateIcon.setTexture('icon_angry').setVisible(true);
+    } else if (emp.state === 'resigning') {
+      emp.stateIcon.setTexture('icon_resigning').setVisible(true);
+    } else {
+      emp.stateIcon.setVisible(false);
+    }
+
+    // 名字标签跟随
+    if (emp.sprite._nameTag) {
+      emp.sprite._nameTag.setPosition(emp.sprite.x, emp.sprite.y - 22);
+    }
+  });
+}
+</script>
 </body>
 </html>
