@@ -432,19 +432,19 @@ function createEmployeeSprites(scene) {
   // 每个员工的色调（第5/6人用不同tint区分）
   const charTints = [0xffffff, 0xffffff, 0xffffff, 0xffffff, 0xffccaa, 0xaaccff];
 
-  // 注册行走动画（Adam_16x16.png 像素验证布局）
-  // row0(0~3)   = 朝下 idle（4帧）
-  // row1(24~35) = 朝下行走（12帧）
-  // row3(72~83) = 朝左行走（12帧）
-  // row4(96~107)= 朝上行走 背面（12帧，头顶像素在右侧，实测确认）
-  // row6(144~152)= 朝右行走（9帧）
+  // 注册行走动画 —— 目视确认 Adam_16x16.png 布局（24列×7行，帧16×32）：
+  // row0 (帧  0~ 3) = 朝下 idle（4帧，正面站立）
+  // row1 (帧 24~35) = 朝下行走（正面，脸可见）
+  // row2 (帧 48~59) = 朝左行走（侧面，脸朝左）
+  // row4 (帧 96~107)= 朝右行走（侧面，脸朝右）
+  // 朝上：该素材无背面帧，用朝下帧代替（flipY 视觉差异更大，不如直接复用）
   charKeys.forEach(key => {
     if (scene.anims.exists(`${key}_walk_down`)) return;
-    scene.anims.create({ key: `${key}_walk_down`,  frames: scene.anims.generateFrameNumbers(key, { start: 24,  end: 35  }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_up`,    frames: scene.anims.generateFrameNumbers(key, { start: 96,  end: 107 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_left`,  frames: scene.anims.generateFrameNumbers(key, { start: 72,  end: 83  }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_right`, frames: scene.anims.generateFrameNumbers(key, { start: 144, end: 152 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_idle`,       frames: scene.anims.generateFrameNumbers(key, { start: 0,   end: 3   }), frameRate: 3, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_down`,  frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 35 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_up`,    frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 35 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_left`,  frames: scene.anims.generateFrameNumbers(key, { start: 48, end: 59 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_right`, frames: scene.anims.generateFrameNumbers(key, { start: 96, end: 107}), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_idle`,       frames: scene.anims.generateFrameNumbers(key, { start: 0,  end: 3  }), frameRate: 3, repeat: -1 });
   });
 
   // 员工初始位置（对应 Tiled 地图 workspace 区域，单位 px）
