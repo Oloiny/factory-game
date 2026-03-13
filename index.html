@@ -437,11 +437,12 @@ function createEmployeeSprites(scene) {
   // row3(72~95)=朝左走       row4(96~119)=朝右走  row5(120~131)=朝下走变体
   charKeys.forEach(key => {
     if (scene.anims.exists(`${key}_walk_down`)) return;
-    // 实测帧布局：row1(帧24-31)朝下 | row4(帧96-107)朝左 | row6(帧144-152)朝右 | 无朝上帧→复用朝下
-    scene.anims.create({ key: `${key}_walk_down`,  frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 31 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_up`,    frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 31 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_left`,  frames: scene.anims.generateFrameNumbers(key, { start: 96, end: 107 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_right`, frames: scene.anims.generateFrameNumbers(key, { start: 144, end: 152 }), frameRate: 8, repeat: -1 });
+    // 实测帧布局：row1(帧24-47)=正面行走 | row3(帧72-95)=朝左 | row4(帧96-119)=朝左变体
+    // 朝右 = 朝左帧 + flipX；朝上 = 朝下帧（该素材无背面）
+    scene.anims.create({ key: `${key}_walk_down`,  frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 35 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_up`,    frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 35 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_left`,  frames: scene.anims.generateFrameNumbers(key, { start: 72, end: 83 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_right`, frames: scene.anims.generateFrameNumbers(key, { start: 72, end: 83 }), frameRate: 8, repeat: -1 }); // 同朝左帧，flipX翻转
     scene.anims.create({ key: `${key}_idle`,       frames: scene.anims.generateFrameNumbers(key, { start: 0,  end: 3  }), frameRate: 3, repeat: -1 });
   });
 
@@ -586,21 +587,35 @@ function updateAIMovement() {
       emp.sprite.setVelocity(0, 0);
     }
 
-    // ===== 根据速度方向切换动画 =====
+    // ===== 根据速度方向切换动画（防抖阈值15，避免斜向移动时反复切换）=====
     const vx = emp.sprite.body.velocity.x;
     const vy = emp.sprite.body.velocity.y;
     const key = emp._charKey;
     if (!key) return;
     if (Math.abs(vx) < 5 && Math.abs(vy) < 5) {
       if (!emp.sprite.anims.currentAnim?.key.endsWith('_idle')) {
+        emp.sprite.setFlipX(false);
         emp.sprite.play(`${key}_idle`, true);
       }
-    } else if (Math.abs(vx) >= Math.abs(vy)) {
-      const anim = vx > 0 ? `${key}_walk_right` : `${key}_walk_left`;
-      if (emp.sprite.anims.currentAnim?.key !== anim) emp.sprite.play(anim, true);
-    } else {
+    } else if (Math.abs(vx) >= Math.abs(vy) + 15) {
+      // 明显横向移动才切换左右动画（防止斜向时抖动）
+      if (vx > 0) {
+        if (emp.sprite.anims.currentAnim?.key !== `${key}_walk_right`) {
+          emp.sprite.setFlipX(true);   // 朝右 = 朝左帧翻转
+          emp.sprite.play(`${key}_walk_right`, true);
+        }
+      } else {
+        if (emp.sprite.anims.currentAnim?.key !== `${key}_walk_left`) {
+          emp.sprite.setFlipX(false);
+          emp.sprite.play(`${key}_walk_left`, true);
+        }
+      }
+    } else if (Math.abs(vy) > 5) {
       const anim = vy > 0 ? `${key}_walk_down` : `${key}_walk_up`;
-      if (emp.sprite.anims.currentAnim?.key !== anim) emp.sprite.play(anim, true);
+      if (emp.sprite.anims.currentAnim?.key !== anim) {
+        emp.sprite.setFlipX(false);
+        emp.sprite.play(anim, true);
+      }
     }
   });
 }
