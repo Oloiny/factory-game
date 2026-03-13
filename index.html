@@ -81,11 +81,13 @@ function preload() {
   this.load.image('Room_Builder_free_32x32', 'assets/modern_interiors/Modern tiles_Free/Interiors_free/32x32/Room_Builder_free_32x32.png');
   this.load.image('Interiors_free_32x32', 'assets/modern_interiors/Modern tiles_Free/Interiors_free/32x32/Interiors_free_32x32.png');
 
-  // ===== 加载角色精灵表 =====
-  this.load.spritesheet('Adam',   'assets/modern_interiors/Modern tiles_Free/Characters_free/Adam_run_16x16.png',   { frameWidth: 16, frameHeight: 32 });
-  this.load.spritesheet('Alex',   'assets/modern_interiors/Modern tiles_Free/Characters_free/Alex_run_16x16.png',   { frameWidth: 16, frameHeight: 32 });
-  this.load.spritesheet('Amelia', 'assets/modern_interiors/Modern tiles_Free/Characters_free/Amelia_run_16x16.png', { frameWidth: 16, frameHeight: 32 });
-  this.load.spritesheet('Bob',    'assets/modern_interiors/Modern tiles_Free/Characters_free/Bob_run_16x16.png',    { frameWidth: 16, frameHeight: 32 });
+  // ===== 加载角色精灵表（Adam_16x16.png：384×224，帧16×32，24列×7行）=====
+  // row0(帧0-23)=朝下idle  row1(帧24-47)=朝下走  row2(帧48-71)=朝上走
+  // row4(帧96-119)=朝左走  row5(帧120-143)=朝右走
+  this.load.spritesheet('Adam',   'assets/modern_interiors/Modern tiles_Free/Characters_free/Adam_16x16.png',   { frameWidth: 16, frameHeight: 32 });
+  this.load.spritesheet('Alex',   'assets/modern_interiors/Modern tiles_Free/Characters_free/Alex_16x16.png',   { frameWidth: 16, frameHeight: 32 });
+  this.load.spritesheet('Amelia', 'assets/modern_interiors/Modern tiles_Free/Characters_free/Amelia_16x16.png', { frameWidth: 16, frameHeight: 32 });
+  this.load.spritesheet('Bob',    'assets/modern_interiors/Modern tiles_Free/Characters_free/Bob_16x16.png',    { frameWidth: 16, frameHeight: 32 });
 
   // 用代码生成素材（兜底）
   const gfx = this.make.graphics({ x: 0, y: 0, add: false });
@@ -202,6 +204,19 @@ function startGame(scene, difficulty) {
   if (wallsLayer)     wallsLayer.setDepth(1);
   if (furnitureLayer) furnitureLayer.setDepth(2);
 
+  // 墙壁碰撞：对所有非空 tile 启用碰撞
+  if (wallsLayer) {
+    wallsLayer.setCollisionByExclusion([-1]);
+  }
+  // 家具碰撞（可选：家具也阻挡通行）
+  if (furnitureLayer) {
+    furnitureLayer.setCollisionByExclusion([-1]);
+  }
+
+  // 保存图层引用供碰撞使用
+  scene.wallsLayer     = wallsLayer;
+  scene.furnitureLayer = furnitureLayer;
+
   // 地图实际尺寸
   const mapWidth  = map.widthInPixels;   // 35 * 32 = 1120
   const mapHeight = map.heightInPixels;  // 30 * 32 = 960
@@ -216,6 +231,18 @@ function startGame(scene, difficulty) {
   // 创建员工 sprite
   createEmployeeSprites(scene);
 
+  // 员工与墙壁/家具碰撞
+  if (scene.wallsLayer) {
+    mainGame.employees.forEach(emp => {
+      if (emp.sprite) scene.physics.add.collider(emp.sprite, scene.wallsLayer);
+    });
+  }
+  if (scene.furnitureLayer) {
+    mainGame.employees.forEach(emp => {
+      if (emp.sprite) scene.physics.add.collider(emp.sprite, scene.furnitureLayer);
+    });
+  }
+
   // 初始化所有 UI 组件
   uiManager.initAll();
 
@@ -225,6 +252,35 @@ function startGame(scene, difficulty) {
   // 启动游戏主循环
   gameStarted = true;
   startGameLoop(scene);
+
+  // ===== 新手引导提示 =====
+  const hintLines = [
+    '🎮 大厂风云 · 操作指引',
+    '',
+    '👆 点击员工  →  查看详情 / 施加技能',
+    '🃏 底部卡牌  →  使用技能（需选目标员工）',
+    '📊 右上角    →  公司状态 & 事件日志',
+    '🕸️ 关系图按钮 →  查看员工关系网络',
+    '',
+    '目标：保持员工满意度，避免集体离职！',
+    '',
+    '          点击任意处关闭'
+  ];
+  const hintBg = scene.add.rectangle(
+    scene.cameras.main.width / 2, scene.cameras.main.height / 2,
+    480, 260, 0x1a1a2e, 0.93
+  ).setScrollFactor(0).setDepth(100).setInteractive();
+
+  const hintText = scene.add.text(
+    scene.cameras.main.width / 2, scene.cameras.main.height / 2,
+    hintLines.join('\n'),
+    { fontSize: '13px', color: '#e2e8f0', fontFamily: 'monospace',
+      lineSpacing: 6, align: 'left', padding: { x: 20, y: 16 } }
+  ).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+
+  const closeHint = () => { hintBg.destroy(); hintText.destroy(); };
+  hintBg.on('pointerdown', closeHint);
+  // 3秒后自动关闭（若用户没点）不自动关，让用户主动关
 
   console.log('🎮 游戏启动！难度：', difficulty);
 }
@@ -361,15 +417,16 @@ function createEmployeeSprites(scene) {
   // 员工姓名 → 精灵表 key 映射（与 preload 中加载的 key 对应）
   const charKeys = ['Adam', 'Alex', 'Amelia', 'Bob'];
 
-  // 注册行走动画（每个角色 4 方向，run 精灵表每行 8 帧）
+  // 注册行走动画（Adam_16x16.png：24列×7行，帧16×32）
+  // row0(0-23)=朝下idle  row1(24-47)=朝下走  row2(48-71)=朝上走
+  // row4(96-119)=朝左走  row5(120-143)=朝右走
   charKeys.forEach(key => {
-    if (scene.anims.exists(`${key}_walk_down`)) return; // 避免重复注册
-    // run_16x16.png 布局：行0=下 行1=上 行2=左 行3=右（每行8帧）
-    scene.anims.create({ key: `${key}_walk_down`,  frames: scene.anims.generateFrameNumbers(key, { start: 0,  end: 7  }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_up`,    frames: scene.anims.generateFrameNumbers(key, { start: 8,  end: 15 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_left`,  frames: scene.anims.generateFrameNumbers(key, { start: 16, end: 23 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_right`, frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 31 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_idle`,       frames: scene.anims.generateFrameNumbers(key, { start: 0,  end: 0  }), frameRate: 1, repeat: -1 });
+    if (scene.anims.exists(`${key}_walk_down`)) return;
+    scene.anims.create({ key: `${key}_walk_down`,  frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 35 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_up`,    frames: scene.anims.generateFrameNumbers(key, { start: 48, end: 59 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_left`,  frames: scene.anims.generateFrameNumbers(key, { start: 96, end: 107 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_right`, frames: scene.anims.generateFrameNumbers(key, { start: 120, end: 131 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_idle`,       frames: scene.anims.generateFrameNumbers(key, { start: 0,  end: 3  }), frameRate: 4, repeat: -1 });
   });
 
   // 员工初始位置（对应 Tiled 地图 workspace 区域，单位 px）
@@ -506,6 +563,23 @@ function updateAIMovement() {
     } else {
       // 停下来
       emp.sprite.setVelocity(0, 0);
+    }
+
+    // ===== 根据速度方向切换动画 =====
+    const vx = emp.sprite.body.velocity.x;
+    const vy = emp.sprite.body.velocity.y;
+    const key = emp._charKey;
+    if (!key) return;
+    if (Math.abs(vx) < 5 && Math.abs(vy) < 5) {
+      if (!emp.sprite.anims.currentAnim?.key.endsWith('_idle')) {
+        emp.sprite.play(`${key}_idle`, true);
+      }
+    } else if (Math.abs(vx) >= Math.abs(vy)) {
+      const anim = vx > 0 ? `${key}_walk_right` : `${key}_walk_left`;
+      if (emp.sprite.anims.currentAnim?.key !== anim) emp.sprite.play(anim, true);
+    } else {
+      const anim = vy > 0 ? `${key}_walk_down` : `${key}_walk_up`;
+      if (emp.sprite.anims.currentAnim?.key !== anim) emp.sprite.play(anim, true);
     }
   });
 }
