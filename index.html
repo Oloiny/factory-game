@@ -55,8 +55,8 @@ let dayTimer = null;
 // ============================================================
 const phaserConfig = {
   type: Phaser.AUTO,
-  width: 900,
-  height: 640,
+  width: 1120,
+  height: 960,
   parent: 'game-container',
   backgroundColor: '#1a202c',
   physics: {
@@ -76,7 +76,18 @@ const phaserGame = new Phaser.Game(phaserConfig);
 // Phaser: preload
 // ============================================================
 function preload() {
-  // 用代码生成素材（不依赖外部文件）
+  // ===== 加载 Tiled 地图 =====
+  this.load.tilemapTiledJSON('office_map', 'assets/maps/office.json');
+  this.load.image('Room_Builder_free_32x32', 'assets/modern_interiors/Modern tiles_Free/Interiors_free/32x32/Room_Builder_free_32x32.png');
+  this.load.image('Interiors_free_32x32', 'assets/modern_interiors/Modern tiles_Free/Interiors_free/32x32/Interiors_free_32x32.png');
+
+  // ===== 加载角色精灵表 =====
+  this.load.spritesheet('Adam',   'assets/modern_interiors/Modern tiles_Free/Characters_free/Adam_run_16x16.png',   { frameWidth: 16, frameHeight: 32 });
+  this.load.spritesheet('Alex',   'assets/modern_interiors/Modern tiles_Free/Characters_free/Alex_run_16x16.png',   { frameWidth: 16, frameHeight: 32 });
+  this.load.spritesheet('Amelia', 'assets/modern_interiors/Modern tiles_Free/Characters_free/Amelia_run_16x16.png', { frameWidth: 16, frameHeight: 32 });
+  this.load.spritesheet('Bob',    'assets/modern_interiors/Modern tiles_Free/Characters_free/Bob_run_16x16.png',    { frameWidth: 16, frameHeight: 32 });
+
+  // 用代码生成素材（兜底）
   const gfx = this.make.graphics({ x: 0, y: 0, add: false });
 
   // 地板
@@ -176,8 +187,31 @@ function startGame(scene, difficulty) {
   // 将 game 绑定到 UIManager
   uiManager.game = mainGame;
 
-  // 绘制场景
-  drawOfficeScene(scene);
+  // ===== 加载 Tiled 地图 =====
+  const map = scene.make.tilemap({ key: 'office_map' });
+  const tsRoom    = map.addTilesetImage('Room_Builder_free_32x32', 'Room_Builder_free_32x32');
+  const tsInterior = map.addTilesetImage('Interiors_free_32x32',  'Interiors_free_32x32');
+  const allTilesets = [tsRoom, tsInterior];
+
+  // 按图层名创建（顺序决定渲染深度）
+  const groundLayer    = map.createLayer('ground',    allTilesets, 0, 0);
+  const wallsLayer     = map.createLayer('walls',     allTilesets, 0, 0);
+  const furnitureLayer = map.createLayer('furniture', allTilesets, 0, 0);
+
+  if (groundLayer)    groundLayer.setDepth(0);
+  if (wallsLayer)     wallsLayer.setDepth(1);
+  if (furnitureLayer) furnitureLayer.setDepth(2);
+
+  // 地图实际尺寸
+  const mapWidth  = map.widthInPixels;   // 35 * 32 = 1120
+  const mapHeight = map.heightInPixels;  // 30 * 32 = 960
+
+  // 设置相机和物理边界
+  scene.cameras.main.setBounds(0, 0, mapWidth, mapHeight);
+  scene.physics.world.setBounds(0, 0, mapWidth, mapHeight);
+
+  // 保存 map 引用，供后续使用
+  scene.tiledMap = map;
 
   // 创建员工 sprite
   createEmployeeSprites(scene);
@@ -185,19 +219,8 @@ function startGame(scene, difficulty) {
   // 初始化所有 UI 组件
   uiManager.initAll();
 
-  // 设置相机边界
-  scene.cameras.main.setBounds(0, 0, 1200, 900);
-  scene.physics.world.setBounds(0, 0, 1200, 900);
-
-  // 定义 zones（默认值，搭完 Tiled 场景后会被 loadZonesFromTiled 覆盖）
-  scene.gameZones = {
-    meeting_room: { x: 50,  y: 50,  width: 200, height: 150 },
-    cafe:         { x: 700, y: 50,  width: 180, height: 150 },
-    gym:          { x: 50,  y: 650, width: 180, height: 180 },
-    medical:      { x: 700, y: 650, width: 160, height: 180 },
-    smoking_area: { x: 350, y: 800, width: 200, height: 80  },
-    desk:         { x: 200, y: 200, width: 700, height: 400 }
-  };
+  // 从 Tiled zones 图层读取区域
+  uiManager.loadZonesFromTiled(map);
 
   // 启动游戏主循环
   gameStarted = true;
@@ -335,29 +358,40 @@ function drawOfficeScene(scene) {
 // 创建员工 Sprite
 // ============================================================
 function createEmployeeSprites(scene) {
-  const roleTextures = {
-    programmer: 'char_programmer',
-    pm: 'char_pm',
-    designer: 'char_designer',
-    executive: 'char_executive'
-  };
+  // 员工姓名 → 精灵表 key 映射（与 preload 中加载的 key 对应）
+  const charKeys = ['Adam', 'Alex', 'Amelia', 'Bob'];
 
+  // 注册行走动画（每个角色 4 方向，run 精灵表每行 8 帧）
+  charKeys.forEach(key => {
+    if (scene.anims.exists(`${key}_walk_down`)) return; // 避免重复注册
+    // run_16x16.png 布局：行0=下 行1=上 行2=左 行3=右（每行8帧）
+    scene.anims.create({ key: `${key}_walk_down`,  frames: scene.anims.generateFrameNumbers(key, { start: 0,  end: 7  }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_up`,    frames: scene.anims.generateFrameNumbers(key, { start: 8,  end: 15 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_left`,  frames: scene.anims.generateFrameNumbers(key, { start: 16, end: 23 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_right`, frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 31 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_idle`,       frames: scene.anims.generateFrameNumbers(key, { start: 0,  end: 0  }), frameRate: 1, repeat: -1 });
+  });
+
+  // 员工初始位置（对应 Tiled 地图 workspace 区域，单位 px）
   const startPositions = [
-    { x: 250, y: 280 },
-    { x: 350, y: 280 },
-    { x: 450, y: 280 },
-    { x: 550, y: 280 }
+    { x: 400, y: 300 },
+    { x: 480, y: 300 },
+    { x: 560, y: 300 },
+    { x: 640, y: 300 }
   ];
 
   mainGame.employees.forEach((emp, i) => {
     const pos = startPositions[i] || { x: 400 + i * 60, y: 400 };
-    const texture = roleTextures[emp.role] || 'char_programmer';
+    const charKey = charKeys[i % charKeys.length];
+    emp._charKey = charKey; // 保存 key 供 AI 行走时切换动画
 
-    // 创建 sprite
-    const sprite = scene.physics.add.sprite(pos.x, pos.y, texture);
+    // 创建 sprite（用真实精灵表）
+    const sprite = scene.physics.add.sprite(pos.x, pos.y, charKey);
+    sprite.setScale(2);          // 16px → 32px
     sprite.setDepth(5);
     sprite.setCollideWorldBounds(true);
     sprite.setInteractive();
+    sprite.play(`${charKey}_idle`);
 
     // 点击 sprite 也能查看详情
     sprite.on('pointerdown', () => {
@@ -370,9 +404,8 @@ function createEmployeeSprites(scene) {
     });
     sprite.on('pointerover', () => {
       sprite.setTint(0xaaddff);
-      // 显示名字气泡
       if (!sprite._nameTag) {
-        sprite._nameTag = scene.add.text(pos.x, pos.y - 20, emp.name, {
+        sprite._nameTag = scene.add.text(sprite.x, sprite.y - 24, emp.name, {
           fontSize: '11px', color: '#ffffff',
           backgroundColor: '#00000099', padding: { x: 4, y: 2 }
         }).setOrigin(0.5).setDepth(20);
@@ -387,8 +420,7 @@ function createEmployeeSprites(scene) {
     emp.deskPosition = pos;
 
     // 状态图标
-    const iconTextures = { stocking: 'icon_stocking', angry: 'icon_angry', resigning: 'icon_resigning' };
-    const stateIcon = scene.add.image(pos.x + 12, pos.y - 16, 'icon_stocking').setDepth(6).setVisible(false);
+    const stateIcon = scene.add.image(sprite.x + 12, sprite.y - 20, 'icon_stocking').setDepth(6).setVisible(false);
     emp.stateIcon = stateIcon;
   });
 }
