@@ -432,18 +432,19 @@ function createEmployeeSprites(scene) {
   // 每个员工的色调（第5/6人用不同tint区分）
   const charTints = [0xffffff, 0xffffff, 0xffffff, 0xffffff, 0xffccaa, 0xaaccff];
 
-  // 注册行走动画（Adam_16x16.png：24列×7行，帧16×32，实测帧布局）
-  // row0(0~3)=朝下idle(4帧)  row1(24~47)=朝下走  row2(48~71)=朝上走(背面)
-  // row3(72~95)=朝左走       row4(96~119)=朝右走  row5(120~131)=朝下走变体
+  // 注册行走动画（Adam_16x16.png 像素验证布局）
+  // row0(0~3)   = 朝下 idle（4帧）
+  // row1(24~35) = 朝下行走（12帧）
+  // row3(72~83) = 朝左行走（12帧）
+  // row4(96~107)= 朝上行走 背面（12帧，头顶像素在右侧，实测确认）
+  // row6(144~152)= 朝右行走（9帧）
   charKeys.forEach(key => {
     if (scene.anims.exists(`${key}_walk_down`)) return;
-    // 实测帧布局：row1(帧24-47)=正面行走 | row3(帧72-95)=朝左 | row4(帧96-119)=朝左变体
-    // 朝右 = 朝左帧 + flipX；朝上 = 朝下帧（该素材无背面）
-    scene.anims.create({ key: `${key}_walk_down`,  frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 35 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_up`,    frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 35 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_left`,  frames: scene.anims.generateFrameNumbers(key, { start: 72, end: 83 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_right`, frames: scene.anims.generateFrameNumbers(key, { start: 72, end: 83 }), frameRate: 8, repeat: -1 }); // 同朝左帧，flipX翻转
-    scene.anims.create({ key: `${key}_idle`,       frames: scene.anims.generateFrameNumbers(key, { start: 0,  end: 3  }), frameRate: 3, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_down`,  frames: scene.anims.generateFrameNumbers(key, { start: 24,  end: 35  }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_up`,    frames: scene.anims.generateFrameNumbers(key, { start: 96,  end: 107 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_left`,  frames: scene.anims.generateFrameNumbers(key, { start: 72,  end: 83  }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_right`, frames: scene.anims.generateFrameNumbers(key, { start: 144, end: 152 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_idle`,       frames: scene.anims.generateFrameNumbers(key, { start: 0,   end: 3   }), frameRate: 3, repeat: -1 });
   });
 
   // 员工初始位置（对应 Tiled 地图 workspace 区域，单位 px）
@@ -564,58 +565,77 @@ function updateAIMovement() {
       return;
     }
 
-    // 正常状态：偶尔走动，大部分时间在工位
+    // 正常状态：按概率去各功能区或回工位
     const rand = Math.random();
-    if (rand < 0.6 && emp.deskPosition) {
-      // 回工位
+    if (rand < 0.4 && emp.deskPosition) {
+      // 40% 回工位
       const dx = emp.deskPosition.x - emp.sprite.x;
       const dy = emp.deskPosition.y - emp.sprite.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist > 10) {
-        emp.sprite.setVelocity((dx / dist) * 30, (dy / dist) * 30);
+        emp.sprite.setVelocity((dx / dist) * 35, (dy / dist) * 35);
       } else {
         emp.sprite.setVelocity(0, 0);
       }
-    } else if (rand < 0.8) {
-      // 随机小范围游走
-      emp.sprite.setVelocity(
-        Phaser.Math.Between(-25, 25),
-        Phaser.Math.Between(-25, 25)
-      );
+    } else if (rand < 0.55) {
+      // 15% 去茶水间（右上 x:700~880, y:50~200）
+      const target = { x: Phaser.Math.Between(720, 860), y: Phaser.Math.Between(70, 180) };
+      const dx = target.x - emp.sprite.x;
+      const dy = target.y - emp.sprite.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      emp.sprite.setVelocity((dx / dist) * 40, (dy / dist) * 40);
+    } else if (rand < 0.65) {
+      // 10% 去会议室（左上 x:50~250, y:50~200）
+      const target = { x: Phaser.Math.Between(70, 230), y: Phaser.Math.Between(70, 190) };
+      const dx = target.x - emp.sprite.x;
+      const dy = target.y - emp.sprite.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      emp.sprite.setVelocity((dx / dist) * 40, (dy / dist) * 40);
+    } else if (rand < 0.73) {
+      // 8% 去健身房（左下 x:50~230, y:650~830）
+      const target = { x: Phaser.Math.Between(70, 210), y: Phaser.Math.Between(670, 810) };
+      const dx = target.x - emp.sprite.x;
+      const dy = target.y - emp.sprite.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      emp.sprite.setVelocity((dx / dist) * 40, (dy / dist) * 40);
+    } else if (rand < 0.80) {
+      // 7% 去医务室（右下 x:700~860, y:650~830）
+      const target = { x: Phaser.Math.Between(720, 840), y: Phaser.Math.Between(670, 810) };
+      const dx = target.x - emp.sprite.x;
+      const dy = target.y - emp.sprite.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      emp.sprite.setVelocity((dx / dist) * 40, (dy / dist) * 40);
+    } else if (rand < 0.87) {
+      // 7% 去吸烟区（底部中间 x:350~550, y:800~880）
+      const target = { x: Phaser.Math.Between(370, 530), y: Phaser.Math.Between(810, 870) };
+      const dx = target.x - emp.sprite.x;
+      const dy = target.y - emp.sprite.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      emp.sprite.setVelocity((dx / dist) * 40, (dy / dist) * 40);
     } else {
-      // 停下来
+      // 13% 停下来（发呆）
       emp.sprite.setVelocity(0, 0);
     }
 
-    // ===== 根据速度方向切换动画（防抖阈值15，避免斜向移动时反复切换）=====
+    // ===== 根据速度方向切换动画（严格按vx/vy绝对值大小决定方向）=====
     const vx = emp.sprite.body.velocity.x;
     const vy = emp.sprite.body.velocity.y;
     const key = emp._charKey;
     if (!key) return;
+
+    let targetAnim;
     if (Math.abs(vx) < 5 && Math.abs(vy) < 5) {
-      if (!emp.sprite.anims.currentAnim?.key.endsWith('_idle')) {
-        emp.sprite.setFlipX(false);
-        emp.sprite.play(`${key}_idle`, true);
-      }
-    } else if (Math.abs(vx) >= Math.abs(vy) + 15) {
-      // 明显横向移动才切换左右动画（防止斜向时抖动）
-      if (vx > 0) {
-        if (emp.sprite.anims.currentAnim?.key !== `${key}_walk_right`) {
-          emp.sprite.setFlipX(true);   // 朝右 = 朝左帧翻转
-          emp.sprite.play(`${key}_walk_right`, true);
-        }
-      } else {
-        if (emp.sprite.anims.currentAnim?.key !== `${key}_walk_left`) {
-          emp.sprite.setFlipX(false);
-          emp.sprite.play(`${key}_walk_left`, true);
-        }
-      }
-    } else if (Math.abs(vy) > 5) {
-      const anim = vy > 0 ? `${key}_walk_down` : `${key}_walk_up`;
-      if (emp.sprite.anims.currentAnim?.key !== anim) {
-        emp.sprite.setFlipX(false);
-        emp.sprite.play(anim, true);
-      }
+      targetAnim = `${key}_idle`;
+    } else if (Math.abs(vx) > Math.abs(vy)) {
+      targetAnim = vx > 0 ? `${key}_walk_right` : `${key}_walk_left`;
+    } else {
+      targetAnim = vy > 0 ? `${key}_walk_down` : `${key}_walk_up`;
+    }
+
+    // 只在动画真正变化时才切换（避免 play(true) 每帧重置）
+    if (emp.sprite.anims.currentAnim?.key !== targetAnim) {
+      emp.sprite.setFlipX(false);  // 各方向有独立帧，不需要翻转
+      emp.sprite.play(targetAnim, true);
     }
   });
 }
