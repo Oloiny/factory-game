@@ -24,9 +24,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Remove unnecessary files
-        run: rm -f tiled_assets.zip
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
@@ -34,7 +31,10 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
+          name: github-pages
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages
