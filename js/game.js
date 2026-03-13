@@ -18,7 +18,7 @@ class MainGame {
     
     // 项目进度
     this.projectProgress = 0;
-    this.projectTarget = 300; // 总目标（4人×约75点进度）
+    this.projectTarget = 450; // 总目标（6人×约75点进度）
     
     // Phaser
     this.scene = null;
@@ -45,17 +45,18 @@ class MainGame {
   createInitialEmployees() {
     const roles = [
       { name: '小明', role: 'programmer', personality: 'introvert' },
-      { name: '小红', role: 'pm', personality: 'extrovert' },
-      { name: '小刚', role: 'designer', personality: 'perfectionist' },
-      { name: '小丽', role: 'programmer', personality: 'normal' }
+      { name: '小红', role: 'pm',         personality: 'extrovert' },
+      { name: '小刚', role: 'designer',   personality: 'perfectionist' },
+      { name: '小丽', role: 'programmer', personality: 'normal' },
+      { name: '小强', role: 'tester',     personality: 'introvert' },
+      { name: '小美', role: 'designer',   personality: 'extrovert' }
     ];
     
     roles.forEach((r, index) => {
       const emp = new Employee({
         ...r,
         id: `emp_${index}`,
-        // 测试用：不同初始情绪，方便看状态图标
-        sanity: index === 0 ? 25 : (index === 1 ? 10 : (index === 2 ? 70 : 3)), // 摸鱼/暴躁/正常/跑路
+        sanity: 50 + Math.random() * 30,
         fatigue: Math.random() * 20,
         loyalty: 40 + Math.random() * 40
       });

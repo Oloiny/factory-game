@@ -255,20 +255,33 @@ function startGame(scene, difficulty) {
 
   // ===== 新手引导提示 =====
   const hintLines = [
-    '🎮 大厂风云 · 操作指引',
+    '🏢 大厂风云 · 游戏规则',
+    '─────────────────────────────────────',
+    '🎯 目标：在截止日期前完成项目（进度100%）',
     '',
-    '👆 点击员工  →  查看详情 / 施加技能',
-    '🃏 底部卡牌  →  使用技能（需选目标员工）',
-    '📊 右上角    →  公司状态 & 事件日志',
-    '🕸️ 关系图按钮 →  查看员工关系网络',
+    '📈 项目进度怎么涨？',
+    '   员工状态正常时每秒自动产出进度',
+    '   员工情绪越高 → 产出越快',
+    '   员工摸鱼/暴躁/准备跑路 → 几乎不产出',
     '',
-    '目标：保持员工满意度，避免集体离职！',
+    '💀 失败条件：',
+    '   ① 截止日期到了进度不足80%',
+    '   ② 所有员工全部离职',
     '',
-    '          点击任意处关闭'
+    '🃏 技能卡牌（底部）：',
+    '   画大饼(10管理点) → 提升单人情绪+进度',
+    '   团建聚餐(¥50)   → 全员回复情绪+疲劳',
+    '   空降高管(¥200)  → 招入卷王，产出高但引发不满',
+    '   带薪休假(¥20)   → 单人深度恢复疲劳',
+    '   紧急会议(30管理点)→ 全员爆发进度，但损耗情绪',
+    '',
+    '👆 点击员工查看详情  |  🕸️ 查看关系图',
+    '─────────────────────────────────────',
+    '              点击任意处关闭'
   ];
   const hintBg = scene.add.rectangle(
     scene.cameras.main.width / 2, scene.cameras.main.height / 2,
-    480, 260, 0x1a1a2e, 0.93
+    520, 380, 0x0d1117, 0.95
   ).setScrollFactor(0).setDepth(100).setInteractive();
 
   const hintText = scene.add.text(
@@ -417,24 +430,27 @@ function createEmployeeSprites(scene) {
   // 员工姓名 → 精灵表 key 映射（与 preload 中加载的 key 对应）
   const charKeys = ['Adam', 'Alex', 'Amelia', 'Bob'];
 
-  // 注册行走动画（Adam_16x16.png：24列×7行，帧16×32）
-  // row0(0-23)=朝下idle  row1(24-47)=朝下走  row2(48-71)=朝上走
-  // row4(96-119)=朝左走  row5(120-143)=朝右走
+  // 注册行走动画（Adam_16x16.png：24列×7行，帧16×32，实测帧布局）
+  // row0(0~3)=朝下idle(4帧)  row1(24~47)=朝下走  row2(48~71)=朝上走(背面)
+  // row3(72~95)=朝左走       row4(96~119)=朝右走  row5(120~131)=朝下走变体
   charKeys.forEach(key => {
     if (scene.anims.exists(`${key}_walk_down`)) return;
-    scene.anims.create({ key: `${key}_walk_down`,  frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 35 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_up`,    frames: scene.anims.generateFrameNumbers(key, { start: 48, end: 59 }), frameRate: 8, repeat: -1 });
+    // 实测帧布局：row1(帧24-31)朝下 | row4(帧96-107)朝左 | row6(帧144-152)朝右 | 无朝上帧→复用朝下
+    scene.anims.create({ key: `${key}_walk_down`,  frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 31 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_up`,    frames: scene.anims.generateFrameNumbers(key, { start: 24, end: 31 }), frameRate: 8, repeat: -1 });
     scene.anims.create({ key: `${key}_walk_left`,  frames: scene.anims.generateFrameNumbers(key, { start: 96, end: 107 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_walk_right`, frames: scene.anims.generateFrameNumbers(key, { start: 120, end: 131 }), frameRate: 8, repeat: -1 });
-    scene.anims.create({ key: `${key}_idle`,       frames: scene.anims.generateFrameNumbers(key, { start: 0,  end: 3  }), frameRate: 4, repeat: -1 });
+    scene.anims.create({ key: `${key}_walk_right`, frames: scene.anims.generateFrameNumbers(key, { start: 144, end: 152 }), frameRate: 8, repeat: -1 });
+    scene.anims.create({ key: `${key}_idle`,       frames: scene.anims.generateFrameNumbers(key, { start: 0,  end: 3  }), frameRate: 3, repeat: -1 });
   });
 
   // 员工初始位置（对应 Tiled 地图 workspace 区域，单位 px）
   const startPositions = [
-    { x: 400, y: 300 },
-    { x: 480, y: 300 },
-    { x: 560, y: 300 },
-    { x: 640, y: 300 }
+    { x: 380, y: 290 },
+    { x: 460, y: 290 },
+    { x: 540, y: 290 },
+    { x: 620, y: 290 },
+    { x: 420, y: 370 },
+    { x: 560, y: 370 }
   ];
 
   mainGame.employees.forEach((emp, i) => {
